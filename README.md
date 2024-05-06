@@ -1,5 +1,5 @@
 # hydro_bsc_project
-project to eventually do hydrodynamics on different meshes, with maybe different physics and different solvers eventually. still work in progress...
+project to eventually do hydrodynamics on different meshes, with maybe different physics and different solvers. still work in progress...
 
 ### Todos:
 - further todos will be placed here
