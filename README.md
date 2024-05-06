@@ -10,8 +10,8 @@ project to eventually do hydrodynamics on different meshes, with maybe different
   <img src="./figures/test_edgecolor_face.png" alt="face" width="45%">
 </p>
 
-"none": with white borders leads to rendering issues for to many cells 
-"faces": no borders
+- "none": with white borders leads to rendering issues for to many cells 
+- "faces": no borders
 
 ### Cartesian Mesh
 
