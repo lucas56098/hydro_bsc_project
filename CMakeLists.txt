@@ -4,7 +4,28 @@ project(hydro_bsc_project VERSION 0.1.0 LANGUAGES C CXX)
 include(CTest)
 enable_testing()
 
-add_executable(hydro main.cpp Point.cpp Cell.cpp Mesh.cpp vmp/Halfplane.cpp vmp/VoronoiCell.cpp vmp/VoronoiMesh.cpp)
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+add_executable(hydro 
+    
+    # main program
+    main.cpp 
+    Mesh.cpp
+    Solver.cpp
+
+    # different cell types
+    cell_types/Point.cpp 
+    cell_types/Cell.cpp 
+    cell_types/Q_Cell.cpp
+    cell_types/Conway_Cell.cpp
+    
+    # imported voronoi_mesh_project
+    vmp/Halfplane.cpp 
+    vmp/VoronoiCell.cpp 
+    vmp/VoronoiMesh.cpp
+    )
 
 # Set the name of the compiled program to "hydro"
 set_target_properties(hydro PROPERTIES OUTPUT_NAME "hydro")

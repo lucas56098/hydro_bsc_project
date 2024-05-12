@@ -1,8 +1,9 @@
 #include <iostream>
 #include <vector>
-#include "Point.h"
-#include "Cell.h"
+#include "cell_types/Point.h"
+#include "cell_types/Cell.h"
 #include "Mesh.h"
+#include "Solver.h"
 #include "vmp/VoronoiMesh.h"
 #include <random>
 #include <algorithm>
@@ -116,61 +117,50 @@ vector<Point> generate_seed_points(int N, bool fixed_random_seed, double min, in
 // MAIN :  -------------------------------------------------------------------------------------------------------
 int main () {
     
-    Mesh grid;
+    Mesh grid(1); // cell types 1 = Q_Cell, 2 = Conway_Cell
     bool cartesian = true;
-    int sim_steps = 2000;
-    int save_iter = 40;
+    int sim_steps = 200*100;
+    double total_sim_time = 0.5;
+    double dt = static_cast<double>(total_sim_time)/static_cast<double>(sim_steps);
+    int save_iter = 100;
 
     // GRID -----------------------------
     if (cartesian) {
-        
         // generate simple uniform grid
-        grid.generate_uniform_grid(Point(0,0), 45, 45, 1.0/45.0);
-    
+        //grid.generate_uniform_grid2D(Point(0,0), 45, 45, 1.0/(45.0), 1.0/(45.0));
+        grid.generate_uniform_grid1D(Point(0,0), 100*100, 1.0/(100.0*100));
+
     } else {
-
-        // genereate seedpoints and vmesh
-        vector<Point> pts = generate_seed_points(2000, true, 0, 1, 42, true, 100, 2);
-        VoronoiMesh vmesh(pts);
-        vmesh.do_point_insertion();
-
-        // generate mesh from vmesh
-        grid.generate_from_vmesh(vmesh);
-
+        // genereate vmesh
+        vector<Point> pts = generate_seed_points(2000, true, 0, 1, 42, true, 100, 1); // points have to be between 0 and 1 for 1D mesh!!
+        grid.generate_vmesh2D(pts);
+        //grid.generate_vmesh1D(pts);
     }
     cout << "grid generated" << endl;
 
+    
     // INITIAL CONDITIONS ---------------
-
-    grid.cells[1011].Q = 1;
-
-    //for (int i =0; i<1000; i++) {
-    //    grid.cells[i].Q = 1;
-    //}
-
-    //for (int i = 0; i < 100*100; i++) {
-    //    if (i%100 > 30 && i%100 < 70 && i/100 > 30 && i/100 < 70) {
-    //        grid.cells[i].Q = 1;
-    //    }
-    //}
+    grid.initialize_cells(0, 10*100, 1);
+    //grid.initialize_random();
+    //grid.save_Q_diff(990.0, true);
 
     // SIMULATE change of Q on mesh -----
+    Solver solver(&grid);
+
     for (int i = 0; i<sim_steps; i++) {
         
         // save meshfiles
         if (i%save_iter == 0) {
-            grid.save_mesh(i);
+            grid.save_mesh(i, cartesian);
+            //grid.save_Q_diff(990.0);
             cout << i << endl;
         }
 
-        grid.updateQ();
-
-        // optional: continuous input
-        for (int i =0; i<1; i++) {
-            grid.cells[1011].Q += 1;
-        }
+        //solver.diffusion_like_step(dt);
+        //solver.conway_step();
+        solver.advection_finite_difference_upwind_cartesian1D(dt, 1);
     }
-
+    
     cout << "done" << endl;
 
     return 0;    

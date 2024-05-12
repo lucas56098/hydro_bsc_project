@@ -13,7 +13,6 @@ struct face
         Point a;
         Point b;
         double length;
-        double deltaQ;
         bool is_boundary;
         Cell* neighbour;
     };
@@ -27,11 +26,11 @@ public:
 
     Point seed;
     vector<face> edges;
-    double Q;
+    double volume;
 
-    void calc_deltaQs();
-    void apply_deltaQs();
-
+    virtual double getQ() const {
+        throw std::runtime_error("Q is not defined for base Cell");
+    }
 
 };
 
