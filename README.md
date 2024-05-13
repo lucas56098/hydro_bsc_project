@@ -58,3 +58,26 @@ on the 1D-plots one can clearly see the numerical diffusion being more important
   <img src="./figures/advection1D_c_1000cells_2000step.gif" alt="advection1D_c_1000cells_2000steps" width="32%">
   <img src="./figures/advection1D_c_10000cells_20000step.gif" alt="advection1D_c_10000cells_20000steps" width="32%">
 </p>
+
+total Q seems fine here
+<p align="center">
+  <img src="./figures/delta_Q_total_cartesian_advection.png" alt="adv_cart" width="60%">
+</p>
+
+
+#### Advection on Voronoi Mesh
+using 
+
+$$ Q_i^{(n+1)} = Q_i^{(n)} - \Delta t \sum_{j \in N(i)}{\text{max}(\vec{v}\cdot \vec{n_{ij}}, 0) \cdot \frac{Q_i^{(n)} - Q_j^{(n)}}{d_{ij}}}  $$
+<p align="center">
+  <img src="./figures/advection_voronoi_first_try2.gif" alt="advection1D_c_100cells_200step" width="80%">
+</p>
+still seems wrong to me, but was my best guess how to do this on a voronoi mesh...
+Also total Q seems to still be messed up in this advection scheme
+<p align="center">
+  <img src="./figures/delta_Q_total_vmesh_advection.png" alt="delta_Q_total_vmesh_advection" width="80%">
+</p>
+
+#### other
+- next week im not in HD -> online?
+- decision on timing schedule: if next semester should be a masters semester -> registration of thesis until end of month. if next semester is a bachelor semester -> registration not until end of the following month i guess -> deadline in mid october? i mean i have no problem working for like 5 months on it but idk

@@ -35,7 +35,7 @@ public:
     void generate_vmesh1D(vector<Point> pts);
     
     // initial conditions
-    void initialize_cells(int a, int b, double value = 1);
+    void initialize_cells(int a, int b, double value = 1, int step = 1);
     void initialize_random();
 
     // save mesh

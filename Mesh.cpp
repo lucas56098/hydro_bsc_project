@@ -330,7 +330,7 @@ void Mesh::generate_vmesh1D(vector<Point> pts) {
 
 // SET INITIAL CONDITIONS -------------------------------------------------------------------------
 // sets the inital value for the first N cells of the cell vector to value
-void Mesh::initialize_cells(int a, int b, double value) {
+void Mesh::initialize_cells(int a, int b, double value, int step) {
 
     if(get_cells_size()< b) {
         cerr << "ERROR: initalize_cells(a, b, value), tried to initalize more cells then there are! b = " << b  << " > cells.size() =" << get_cells_size() << endl;
@@ -338,11 +338,11 @@ void Mesh::initialize_cells(int a, int b, double value) {
     }
 
     if (cell_type == 1) {
-        for (int i = a; i < b; i++) {
+        for (int i = a; i < b; i+=step) {
             q_cells[i].Q = value;
         }
     } else if (cell_type == 2) {
-        for (int i = a; i < b; i++) {
+        for (int i = a; i < b; i+=step) {
             conway_cells[i].Q = static_cast<int>(value);
             
         }
