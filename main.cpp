@@ -117,51 +117,55 @@ vector<Point> generate_seed_points(int N, bool fixed_random_seed, double min, in
 // MAIN :  -------------------------------------------------------------------------------------------------------
 int main () {
     
-    Mesh grid(1); // cell types 1 = Q_Cell, 2 = Conway_Cell
-    bool cartesian = true;
-    int sim_steps = 200*100;
-    double total_sim_time = 0.5;
+    Mesh<Q_Cell> grid;
+    bool cartesian = false;
+    int sim_steps = 2000;
+    double total_sim_time = 0.3;
     double dt = static_cast<double>(total_sim_time)/static_cast<double>(sim_steps);
-    int save_iter = 100;
+    int save_iter = 10;
 
     // GRID -----------------------------
     if (cartesian) {
         // generate simple uniform grid
-        //grid.generate_uniform_grid2D(Point(0,0), 45, 45, 1.0/(45.0), 1.0/(45.0));
-        grid.generate_uniform_grid1D(Point(0,0), 100*100, 1.0/(100.0*100));
+        //grid.generate_uniform_grid2D(Point(0,0), 10, 10, 1.0/(10.0), 1.0/(10.0));
+        grid.generate_uniform_grid1D(Point(0,0), 200, 1.0/(200.0));
 
     } else {
         // genereate vmesh
-        vector<Point> pts = generate_seed_points(2000, true, 0, 1, 42, true, 100, 1); // points have to be between 0 and 1 for 1D mesh!!
+        vector<Point> pts = generate_seed_points(20000, true, 0, 1, 42, true, 100, 2); // points have to be between 0 and 1 for 1D mesh!!
         grid.generate_vmesh2D(pts);
         //grid.generate_vmesh1D(pts);
     }
     cout << "grid generated" << endl;
 
-    
+
     // INITIAL CONDITIONS ---------------
-    grid.initialize_cells(0, 10*100, 1);
+    grid.initialize_Q_cells(0, 2000, 1, 1);
     //grid.initialize_random();
-    //grid.save_Q_diff(990.0, true);
+    grid.save_Q_diff(true, true);
 
     // SIMULATE change of Q on mesh -----
-    Solver solver(&grid);
+    Solver<Q_Cell> solver(&grid);
+
 
     for (int i = 0; i<sim_steps; i++) {
         
         // save meshfiles
         if (i%save_iter == 0) {
-            grid.save_mesh(i, cartesian);
-            //grid.save_Q_diff(990.0);
+            grid.save_Q_mesh(i, cartesian);
+            grid.save_Q_diff(false, true);
             cout << i << endl;
         }
 
         //solver.diffusion_like_step(dt);
         //solver.conway_step();
-        solver.advection_finite_difference_upwind_cartesian1D(dt, 1);
+        //solver.advection_finite_difference_upwind_cartesian(dt, Point(0.5, 0.0));
+        solver.advection_vmesh(dt, Point(0.5, 0.3));
     }
-    
+
+
     cout << "done" << endl;
+
 
     return 0;    
 

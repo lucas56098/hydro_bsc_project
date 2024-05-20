@@ -4,7 +4,7 @@ project(hydro_bsc_project VERSION 0.1.0 LANGUAGES C CXX)
 include(CTest)
 enable_testing()
 
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -12,8 +12,8 @@ add_executable(hydro
     
     # main program
     main.cpp 
-    Mesh.cpp
-    Solver.cpp
+    Mesh.tpp
+    Solver.tpp
 
     # different cell types
     cell_types/Point.cpp 

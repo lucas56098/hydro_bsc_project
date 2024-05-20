@@ -2,11 +2,12 @@
 
 Conway_Cell::Conway_Cell() {}
 
-Conway_Cell::Conway_Cell(Point seedin, std::vector<face> edgesin, int Qin) {
+Conway_Cell::Conway_Cell(Point seedin, std::vector<face> edgesin) {
 
     seed = seedin;
     edges = edgesin;
-    Q = Qin;
+    Q = 0;
+    cell_type = 2;
 
 }
 

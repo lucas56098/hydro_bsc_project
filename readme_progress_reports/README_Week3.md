@@ -48,16 +48,16 @@ if (is_density) {
 - Plot to compare the numerical errors between float and double precision for the advection. As one can see the error for float precision around $10^{-8}$ and for double precision around $10^{-16} = (10^{-8})^2$ as expected.
 
 <p align="center">
-  <img src="./figures/delta_Q_total_double_precision.png" alt="delta_Q_total_double_precision" width="45%">
-  <img src="./figures/delta_Q_total_float_precision.png" alt="delta_Q_total_float_precision" width="45%">
+  <img src="../figures/delta_Q_total_double_precision.png" alt="delta_Q_total_double_precision" width="45%">
+  <img src="../figures/delta_Q_total_float_precision.png" alt="delta_Q_total_float_precision" width="45%">
 </p>
 
 - Since at this number of simulation steps the error seems random like the next plots show the Q conseravtion error for way more simulation steps (500k). Here one can see, that there is some kind of systematic change to the error. This systematic deviation however is very sensitive to initial condition and not in any predictable direction. Also the deviation is still quite small (~$10^{-15}$) even for many simulation steps. So i guess no concern?
 
 <p align="center">
-  <img src="./figures/delta_Q_total_long_run_1.png" alt="delta_Q_total_long_run_1" width="32%">
-  <img src="./figures/delta_Q_total_long_run_2.png" alt="delta_Q_total_long_run_2" width="32%">
-  <img src="./figures/delta_Q_total_long_run_3.png" alt="delta_Q_total_long_run_3" width="32%">
+  <img src="../figures/delta_Q_total_long_run_1.png" alt="delta_Q_total_long_run_1" width="32%">
+  <img src="../figures/delta_Q_total_long_run_2.png" alt="delta_Q_total_long_run_2" width="32%">
+  <img src="../figures/delta_Q_total_long_run_3.png" alt="delta_Q_total_long_run_3" width="32%">
 </p>
 
 - To better quantify the numerical error the numerical caluclation and analytical solution for the 1D advection are shown from which the L1 error is calculated.
@@ -66,8 +66,8 @@ with $N$ the number of data points, $f_i$ the analytical solution for data point
 As one can see the error in this specific scenario increases roughly log like with time while the spikes are resolution effects. Also higher time and/or spatial resolution leads to smaller errors.
 
 <p align="center">
-  <img src="./figures/advection1D_c_200cells_20000step_with_analytic.gif" alt="advection1D_c_200cells_20000step_with_analytic" width="49%">
-  <img src="./figures/L1_error_time_evolution.png" alt="L1_error_time_evolution" width="49%">
+  <img src="../figures/advection1D_c_200cells_20000step_with_analytic.gif" alt="advection1D_c_200cells_20000step_with_analytic" width="49%">
+  <img src="../figures/L1_error_time_evolution.png" alt="L1_error_time_evolution" width="49%">
 </p>
 
 ---
@@ -94,13 +94,13 @@ Q_i_np1 = Q_i_n - dt/dV *(total_Flux);
 
 For an initial circle and $v = (0.5, 0.3)$ we get: 
 <p align="center">
-  <img src="./figures/advection_voronoi_working.gif" alt="advection_voronoi_working" width="90%">
+  <img src="../figures/advection_voronoi_working.gif" alt="advection_voronoi_working" width="90%">
 </p>
 
 total_Q (density) seems to be conserved here quite well (~$10^{-15}$) until the first parts of the numerical diffusion reach the border and are advected over it
 
 <p align="center">
-  <img src="./figures/delta_Q_total_log_vmesh_advection_working.png" alt="delta_Q_total_log_vmesh_advection_working" width="80%">
+  <img src="../figures/delta_Q_total_log_vmesh_advection_working.png" alt="delta_Q_total_log_vmesh_advection_working" width="80%">
 </p>
 
 --- 

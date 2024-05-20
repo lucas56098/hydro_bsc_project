@@ -8,26 +8,17 @@
 #ifndef Mesh_h
 #define Mesh_h
 
+template <typename CellType>
 class Mesh {
 
 public:
-    Mesh();
-    Mesh(int cell_typein);
-    ~Mesh();
+    Mesh<CellType>();
+    ~Mesh<CellType>();
 
     // internal lists and cell type
-    int cell_type;  // 0 = Cell, 1 = Q_Cell, 2 = Conway_Cell
-    vector<Cell> cells;
-    vector<Q_Cell> q_cells;
-    vector<Conway_Cell> conway_cells;
+    vector<CellType> cells;
+    double total_Q_initial;
     
-    // function for adaptive cell handling
-    void smart_push_back(Point seedin, vector<face> edgesin);
-    face& smart_cells_edge(int i, int j);
-    Cell& smart_cells(int i);
-    int get_edges_size(int i);
-    int get_cells_size();
-
     // generate mesh
     void generate_uniform_grid2D(Point start, int n_hor, int n_vert, double distx, double disty);
     void generate_vmesh2D(vector<Point> pts);
@@ -35,13 +26,15 @@ public:
     void generate_vmesh1D(vector<Point> pts);
     
     // initial conditions
-    void initialize_cells(int a, int b, double value = 1, int step = 1);
+    void initialize_Q_cells(int a, int b, double value = 1, int step = 1);
     void initialize_random();
 
     // save mesh
-    void save_mesh(int file_nr, bool cartesian = true);
-    void save_Q_diff(double initial_total_Q, bool reset_file = false);
+    void save_Q_mesh(int file_nr, bool cartesian = true);
+    void save_Q_diff(bool reset_file = false, bool is_density = true);
 
 };
+
+#include "Mesh.tpp"
 
 #endif

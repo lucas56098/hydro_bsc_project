@@ -27,6 +27,7 @@ public:
     Point seed;
     vector<face> edges;
     double volume;
+    int cell_type = 0;
 
     virtual double getQ() const {
         throw std::runtime_error("Q is not defined for base Cell");

@@ -2,11 +2,12 @@
 
 Q_Cell::Q_Cell() {}
 
-Q_Cell::Q_Cell(Point seedin, std::vector<face> edgesin, double Qin) {
+Q_Cell::Q_Cell(Point seedin, std::vector<face> edgesin) {
 
     seed = seedin;
     edges = edgesin;
-    Q = Qin;
+    Q = 0;
+    cell_type = 1;
 
 }
 

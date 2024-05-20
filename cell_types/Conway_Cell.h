@@ -7,7 +7,7 @@
 class Conway_Cell : public Cell {
 public:
     Conway_Cell();
-    Conway_Cell(Point seedin, std::vector<face> edgesin, int Qin);
+    Conway_Cell(Point seedin, std::vector<face> edgesin);
     ~Conway_Cell();
 
     int Q;
