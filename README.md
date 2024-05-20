@@ -61,7 +61,9 @@ if (is_density) {
 </p>
 
 - To better quantify the numerical error the numerical caluclation and analytical solution for the 1D advection are shown from which the L1 error is calculated.
+
 $$ L_1 = \frac{1}{N}\sum^{N}_{i = 1}{|f_i - u_i|} $$
+
 with $N$ the number of data points, $f_i$ the analytical solution for data point $i$ and $u_i$ the numerical solution.
 As one can see the error in this specific scenario increases roughly log like with time while the spikes are resolution effects. Also higher time and/or spatial resolution leads to smaller errors.
 
@@ -74,9 +76,13 @@ As one can see the error in this specific scenario increases roughly log like wi
 ### 3. Advection on Voronoi Mesh
 or any mesh in general, using finite volume upwind scheme.
 FV method:
+
 $$ Q_i^{(n+1)} = Q_i^{(n)} - \frac{\Delta t}{\Delta V}\int{\vec{F}\cdot \vec{ds}}$$
+
 For voronoi cells $i$ with faces $j$ the integral simplifies to a sum. The Flux for advection in an upwind scheme is given by $F_j = v_{eff} \cdot Q_{upwind}$ where $Q_{upwind}$ is either $Q_i$ or the neighbouring $Q_j$ depending on sign of $v_{eff}$ with $v_{eff} = \vec{v} \cdot \vec{n}$ where $\vec{n}$ is the normal vector to the face. This leads to
+
 $$ Q_i^{(n+1)} = Q_i^{(n)} - \frac{\Delta t}{\Delta V}\sum_{j\in N(i)}{v_{eff, j} \cdot Q_{upwind}\cdot l_{j}}$$
+
 with $l_{j}$ the length of that face.
 
 Solver.tpp :
