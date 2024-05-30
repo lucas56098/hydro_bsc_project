@@ -422,7 +422,7 @@ template <typename CellType>
 void Mesh<CellType>::save_mesh(int file_nr, string name) {
 
     string filename;
-    filename = "../files/" + name + to_string(file_nr) + ".csv"; 
+    filename = "../src/files/" + name + to_string(file_nr) + ".csv"; 
 
     ofstream output_file(filename);
     
@@ -490,10 +490,10 @@ void Mesh<CellType>::save_Q_diff(bool reset_file, bool is_density) {
     // open new file or in append mode
     ofstream output_file;
     if (reset_file) {
-        output_file = ofstream("../files/total_Q_diff.csv");
+        output_file = ofstream("../src/files/total_Q_diff.csv");
         total_Q_initial = total_Q;
     } else {
-        output_file = ofstream("../files/total_Q_diff.csv", ios::app);
+        output_file = ofstream("../src/files/total_Q_diff.csv", ios::app);
     }
 
     // write caluclated difference in file
