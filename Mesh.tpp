@@ -17,7 +17,148 @@ template <typename CellType>
 Mesh<CellType>::Mesh() {}
 
 
+// PRIVATE Helper functions for Point Generation --------------------------------------------------
+// Function out of vmp main.cpp
+// RANDOM POINTS: function to get a sort index
+template <typename CellType>
+int Mesh<CellType>::get_sort_index(Point pt, int sort_grid_size, int sort_scheme) {
+
+    double nr = static_cast<double>(sort_grid_size);
+
+    int index;
+
+    // sort by x-y modulo grid
+    if (sort_scheme == 1) {
+
+        if (static_cast<int>(nr * nr * pt.y)%2==0) {
+
+            index = (sort_grid_size - static_cast<int>(pt.x * nr)) + static_cast<int>(nr * nr * pt.y);
+
+        } else {
+
+            index = static_cast<int>(pt.x * nr) + static_cast<int>(nr * nr * pt.y);
+
+        }
+
+    // sort radially outward
+    } else if (sort_scheme == 2) {
+
+        index = static_cast<int>((nr*nr)*sqrt((pt.x-0.5)*(pt.x-0.5) + (pt.y-0.5)*(pt.y-0.5)));
+
+    // sort radially inward
+    } else if (sort_scheme == 3) {
+
+        index = static_cast<int>((nr*nr)*(sqrt(0.5) - sqrt((pt.x-0.5)*(pt.x-0.5) + (pt.y-0.5)*(pt.y-0.5))));
+
+    // all other numbers -> do not sort
+    } else {
+
+        index = 1;
+
+    }
+
+    return index;
+}
+
+// Function out of vmp main.cpp
+// RANDOM POINTS: generates seed points to use for mesh generation
+template <typename CellType>
+vector<Point> Mesh<CellType>::generate_seed_points(int N, bool fixed_random_seed, double min, int max, int rd_seed, bool sort_pts, int sort_precision, int sort_scheme) {
+    vector<Point> points;
+
+    unsigned int random_seed;
+    default_random_engine eng;
+
+    // set either fixed or changing random seed
+    if (fixed_random_seed) {
+        random_seed = rd_seed;
+    } else {
+        random_device rd;
+        random_seed = rd();
+
+    }
+
+    // define uniform random distribution
+    eng = default_random_engine(random_seed);
+    uniform_real_distribution<double> distr(min, max);
+
+    // generate random coordinates for Points
+    for (int i = 0; i < N; ++i) {
+        double x = distr(eng);
+        double y = distr(eng);
+        points.push_back(Point(x, y));
+    }
+
+    // if this is true the points will be sorted
+    if (sort_pts) {
+        vector<int> indices;
+        vector<int> sort_indices;
+
+        // get sort indices
+        for (int i = 0; i < points.size(); i++) {
+            indices.push_back(get_sort_index(points[i], sort_precision, sort_scheme));
+            sort_indices.push_back(i);
+        }
+
+        // combine data into pairs
+        vector<pair<int, int> > combined;
+        for (int i = 0; i < indices.size(); ++i) {
+            combined.push_back(make_pair(indices[i], sort_indices[i]));
+        }    
+
+        // sort combined data by sort indices
+        sort(combined.begin(), combined.end());
+
+        // get sorted_pts
+        vector<Point> sorted_pts;
+        for (int i = 0; i < combined.size(); i++) {
+            sorted_pts.push_back(points[combined[i].second]);
+        }
+
+        return sorted_pts;
+    }
+
+    return points;
+}
+
+
 // GRID GENERATION: -------------------------------------------------------------------------------
+// calls the generate Mesh functions depending on specified options (cartesian, 1D/2D, N_row)
+template <typename CellType>
+void Mesh<CellType>::generate_grid(bool cartesian, bool is_1D, int N_row) {
+
+    if (cartesian) {
+        // generate cartesian mesh
+        if (is_1D) {
+            // do it in 1D
+            this->generate_uniform_grid1D(Point(0, 0), N_row, 1.0/static_cast<double>(N_row));
+            is_cartesian = true;
+        } else {
+            // do it in 2D
+            this->generate_uniform_grid2D(Point(0, 0), N_row, N_row, 1.0/static_cast<double>(N_row), 1.0/static_cast<double>(N_row));
+            is_cartesian = true;
+        }
+    } else {
+        // generate voronoi mesh
+        if (is_1D) {
+            // do it in 1D
+            vector<Point> pts = generate_seed_points(N_row, true, 0, 1, 42, true, 100, 1);
+            this->generate_vmesh1D(pts);
+            is_cartesian = false;
+        } else {
+            // do it in 2D
+            vector<Point> pts = generate_seed_points(N_row * N_row, true, 0, 1, 42, true, 100, 1);
+            this->generate_vmesh2D(pts);
+            is_cartesian = false;
+        }
+
+    }
+    cout << "grid generated" << endl;
+
+
+}
+
+
 // generates a uniform grid with all the neighbour relations and so on
 template <typename CellType>
 void Mesh<CellType>::generate_uniform_grid2D(Point start, int n_hor, int n_vert, double distx, double disty) {
@@ -63,8 +204,6 @@ void Mesh<CellType>::generate_uniform_grid2D(Point start, int n_hor, int n_vert,
             edgesin[3].length = distx;
 
             // push back new cell in cells vector
-            //cells.push_back(Q_Cell(seedin, edgesin, 0));
-
             cells.emplace_back(seedin, edgesin);
 
         }
@@ -78,24 +217,20 @@ void Mesh<CellType>::generate_uniform_grid2D(Point start, int n_hor, int n_vert,
         for (int j = 0; j<cells[i].edges.size(); j++) {
             if (cells[i].edges[j].is_boundary == false) {
                 if (j == 0) {
-                    //cells[i].edges[j].neighbour = &cells[i-1];
-                    //smart_cells_edge(i, j).neighbour = &smart_cells(i-1);//&q_cells[i-1];
                     cells[i].edges[j].neighbour = &cells[i-1];
                 } else if (j == 1) {
                     cells[i].edges[j].neighbour = &cells[i+n_hor];
-                    //smart_cells_edge(i, j).neighbour = &smart_cells(i+n_hor);
                 } else if (j == 2) {
                     cells[i].edges[j].neighbour = &cells[i+1];
-                    //smart_cells_edge(i, j).neighbour = &smart_cells(i+1);
                 } else if (j == 3) {
                     cells[i].edges[j].neighbour = &cells[i-n_hor];
-                    //smart_cells_edge(i, j).neighbour = &smart_cells(i-n_hor);
                 }
                 
             }
         }
     }
 }
+
 
 // generates vmesh using vmp and converts it into data usable for this mesh type
 template <typename CellType>
@@ -125,8 +260,7 @@ void Mesh<CellType>::generate_vmesh2D(vector<Point> pts) {
 
         }
 
-        //smart_push_back(seedin, edgesin);
-        //cells.push_back(Q_Cell(seedin, edgesin, 0));
+        // push back new cell in cells
         cells.emplace_back(seedin, edgesin);
 
     }
@@ -147,7 +281,6 @@ void Mesh<CellType>::generate_vmesh2D(vector<Point> pts) {
 
                 // neighbour as defined before over index now with adress
                 cells[i].edges[j].neighbour = &cells[neigbour_index];
-                //smart_cells_edge(i, j).neighbour = &smart_cells(neigbour_index);
 
             }
 
@@ -158,13 +291,15 @@ void Mesh<CellType>::generate_vmesh2D(vector<Point> pts) {
 
 }
 
+
 // generates a 1D uniform grid with all the neighbour relations and so on
 template <typename CellType>
 void Mesh<CellType>::generate_uniform_grid1D(Point start, int n, double dist) {
     generate_uniform_grid2D(start, n, 1, dist, 1);
 }
 
-// points x values have to be between 0 and 1 for 1D mesh!!
+
+// generates a 1D voronoi mesh, only works if points are between 0 and 1
 template <typename CellType>
 void Mesh<CellType>::generate_vmesh1D(vector<Point> pts) {
 
@@ -195,7 +330,9 @@ void Mesh<CellType>::generate_vmesh1D(vector<Point> pts) {
         double distl;
         double distr;
 
+        // manually set left part of faces
         if (i == 0) {
+            // we are in the leftmost cell
             f0.is_boundary = true;
             f0.a = Point(0, 0);
             f0.b = Point(0, 1);
@@ -203,6 +340,7 @@ void Mesh<CellType>::generate_vmesh1D(vector<Point> pts) {
             f3.b = Point(0,0);
             distl = seedin.x;
         } else {
+            // just a random cell
             f0.a = Point((sorted_pts[i-1].x + sorted_pts[i].x)/2.0, 0);
             f0.b = Point((sorted_pts[i-1].x + sorted_pts[i].x)/2.0, 1);
             f1.a = Point((sorted_pts[i-1].x + sorted_pts[i].x)/2.0, 1);
@@ -210,7 +348,9 @@ void Mesh<CellType>::generate_vmesh1D(vector<Point> pts) {
             distl = sorted_pts[i].x - sorted_pts[i-1].x;
         }
         
+        // manually set rigth part of faces
         if (i == sorted_pts.size()-1) {
+            // we are in the rightmost cell
             f2.is_boundary = true;
             f1.b = Point(1, 1);
             f2.a = Point(1, 1);
@@ -218,6 +358,7 @@ void Mesh<CellType>::generate_vmesh1D(vector<Point> pts) {
             f3.a = Point(1,0);
             distr = 1 - seedin.x;
         } else {
+            // just a random cell
             f1.b = Point((sorted_pts[i].x + sorted_pts[i+1].x)/2.0, 1);
             f2.a = Point((sorted_pts[i].x + sorted_pts[i+1].x)/2.0, 1);
             f2.b = Point((sorted_pts[i].x + sorted_pts[i+1].x)/2.0, 0);
@@ -225,11 +366,13 @@ void Mesh<CellType>::generate_vmesh1D(vector<Point> pts) {
             distr = sorted_pts[i+1].x - sorted_pts[i].x;
         }
 
+        // push back faces
         edgesin.push_back(f0);
         edgesin.push_back(f1);
         edgesin.push_back(f2);
         edgesin.push_back(f3);
 
+        // set correct lengths
         edgesin[0].length = 1;
         edgesin[2].length = 1;
         edgesin[1].length = distl + distr;
@@ -243,10 +386,10 @@ void Mesh<CellType>::generate_vmesh1D(vector<Point> pts) {
     // now that all cells exist we define the neighbour relations
     for (int i = 0; i < cells.size(); i++) {
 
-        cells[i].volume = cells[i].edge[0].length * cells[i].edge[1].length;
+        cells[i].volume = cells[i].edges[0].length * cells[i].edges[1].length;
 
         if (i != 0) {
-            cells[i].edge[0].neighbour = &cells[i-1];
+            cells[i].edges[0].neighbour = &cells[i-1];
         }
         if (i != cells.size()-1) {
             cells[i].edges[2].neighbour = &cells[i+1];
@@ -273,33 +416,13 @@ void Mesh<CellType>::initialize_Q_cells(int a, int b, double value, int step) {
 
 }
 
-// for Conwway_Cells only! Initalizes grid with random integers 0,1
-template <typename CellType>
-void Mesh<CellType>::initialize_random() {
-
-    // prepare random device
-    random_device rd;
-    mt19937 gen(rd());
-    uniform_int_distribution<> dist(0, 1);
-
-    // fill the Q values with random integers 0, 1
-    for (int i = 0; i < cells.size(); i++) {
-        cells[i].Q = dist(gen) * dist(gen);
-    }
-}
-
 // SAVE DATA TO FILE ------------------------------------------------------------------------------
 // saves mesh into csv file readable for python script
 template <typename CellType>
-void Mesh<CellType>::save_Q_mesh(int file_nr, bool cartesian) {
+void Mesh<CellType>::save_mesh(int file_nr, string name) {
 
     string filename;
-
-    if (cartesian) {
-        filename = "../files/cmesh" + to_string(file_nr) + ".csv"; 
-    } else {
-        filename = "../files/vmesh" + to_string(file_nr) + ".csv"; 
-    }
+    filename = "../files/" + name + to_string(file_nr) + ".csv"; 
 
     ofstream output_file(filename);
     
@@ -321,21 +444,19 @@ void Mesh<CellType>::save_Q_mesh(int file_nr, bool cartesian) {
         for (int j = 0; j<cells[i].edges.size(); j++) {
 
             output_file << cells[i].edges[j].a.x << ','
-                        << cells[i].edges[j].a.y //<< ','
-                        //<< cells[i].edges[j].b.x << ','
-                        //<< cells[i].edges[j].b.y
+                        << cells[i].edges[j].a.y
                         << ";";
         }
 
-        // correct for empty columns such that Q is always at the same column
+        // correct for empty columns such that further values are always at the same column
         for (int a = 0; a<(max_edge_nr-cells[i].edges.size()); a++) {
             output_file << ";";
         }
 
         output_file << "|";
 
-        // if cell type is Q_cell save Q
-        if constexpr (is_same_v<CellType, Q_Cell>) {
+        // if cell type is Q_cell or Conway Cell save Q
+        if constexpr (is_same_v<CellType, Q_Cell> || is_same_v<CellType, Conway_Cell>) {
             output_file << cells[i].Q;
         }
 
@@ -347,10 +468,10 @@ void Mesh<CellType>::save_Q_mesh(int file_nr, bool cartesian) {
 
 }
 
+
 // function to save the change in the summed up Q value over the whole grid
 template <typename CellType>
 void Mesh<CellType>::save_Q_diff(bool reset_file, bool is_density) {
-
 
     double total_Q = 0;
 
@@ -378,9 +499,7 @@ void Mesh<CellType>::save_Q_diff(bool reset_file, bool is_density) {
     // write caluclated difference in file
     output_file << total_Q-total_Q_initial << ",";
     
-
 }
-
 
 
 template <typename CellType>

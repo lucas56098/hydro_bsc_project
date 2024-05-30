@@ -16,13 +16,24 @@ public:
     Solver<CellType>(Mesh<CellType>* gridin);
     ~Solver<CellType>();
 
+    // equation solvers
+    void diffusion_like(double dt);
+    void conway();
+    void advection(double dt, Point v);
+    
+private:
+
+    // grid to solve the equations on
     Mesh<CellType>* grid;
 
+    // helper functions
     Point get_normal_vec(Point a, Point b);
-    void diffusion_like_step(double dt);
-    void conway_step();
-    void advection_finite_difference_upwind_cartesian(double dt, Point v);
+
+    // sub solvers
+    void advection_cartesian(double dt, Point v);
     void advection_vmesh(double dt, Point v);
+
+
 };
 
 #include "Solver.tpp"

@@ -2,16 +2,19 @@
 #include <vector>
 using namespace std;
 
-
 #ifndef Cell_h
 #define Cell_h
 
 class Cell;
 
+// structure to store a face out of the edges of the cell
 struct face
     {
+        // start and endpoint of the face
         Point a;
         Point b;
+
+        // other
         double length;
         bool is_boundary;
         Cell* neighbour;
@@ -27,10 +30,9 @@ public:
     Point seed;
     vector<face> edges;
     double volume;
-    int cell_type = 0;
 
     virtual double getQ() const {
-        throw std::runtime_error("Q is not defined for base Cell");
+        throw runtime_error("Q is not defined for base Cell");
     }
 
 };

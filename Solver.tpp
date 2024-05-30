@@ -1,7 +1,9 @@
 #include <iostream>
 #include <vector>
 #include <string>
+#include <cmath>
 #include <algorithm>
+#include <type_traits>
 #include "cell_types/Point.h"
 #include "cell_types/Cell.h"
 #include "cell_types/Q_Cell.h"
@@ -13,11 +15,11 @@ Solver<CellType>::Solver() {}
 
 template <typename CellType>
 Solver<CellType>::Solver(Mesh<CellType>* gridin) {
-
     grid = gridin;
-
 }
 
+// PRIVATE helper functions -----------------------------------------------------------------------
+// function to get the normal vector on a face definde by two points
 template <typename CellType>
 Point Solver<CellType>::get_normal_vec(Point a, Point b) {
 
@@ -29,16 +31,15 @@ Point Solver<CellType>::get_normal_vec(Point a, Point b) {
     return Point(-Delta_y/norm, Delta_x/norm);
 }
 
+// SOLVERS (update the Mesh by a single step) ------------------------------------------------------
 
-// requires Q_Cells
+// Fake Diffusion Equation as first try, requires Q_cells, Q is a absolute value not a density
 template <typename CellType>
-void Solver<CellType>::diffusion_like_step(double dt) {
+void Solver<CellType>::diffusion_like(double dt) {
  
-    if (grid->cells[0].cell_type != 1) {
-        cerr << "diffusion_like_step called on Mesh with cell_type !=1, you must use Q_Cells" << endl;
-        //exit(EXIT_FAILURE);
-    } if (0.1 * dt >1){ //(/grid->q_cells[0].edges[0].length * grid->q_cells[0].edges[0].length) > 1) {
-        cerr << "WARNING: c * dt/l^2 > 1, this time step likely wont be numerical stable, please reduce dt" << endl;
+    // make sure that the cell type is correct
+    if constexpr (is_same_v<CellType, Q_Cell> == false) {
+        cerr << "diffusion_like step called on Mesh with wrong cell type, you must use Q_Cells" << endl;
         exit(EXIT_FAILURE);
     }
 
@@ -53,29 +54,18 @@ void Solver<CellType>::diffusion_like_step(double dt) {
         // calculate flux for each face and add to total in/outflow
         for (int j = 0; j< grid->cells[i].edges.size(); j++) {
 
-
             // calculate flux for normal faces and boundary faces
             if (grid->cells[i].edges[j].is_boundary == false) {
 
-
                 // diffusion like flux
-                //deltaQ += 0.1 * (grid->cells[i].edges[j].neighbour->getQ() - grid->cells[i].Q) * dt;
                 deltaQ += 0.1 * (grid->cells[i].edges[j].neighbour->getQ() - grid->cells[i].Q);
 
-
             } else {
-
                 deltaQ += 0;  // no flux through boundaries at the moment
-
             }
-
         }
-
-        //cout << i << " : " << deltaQ << endl;
-
         // new Q = old Q + delta Q
         Qs_new.push_back(grid->cells[i].Q + deltaQ);
-
     }
 
     double total = 0;
@@ -85,17 +75,19 @@ void Solver<CellType>::diffusion_like_step(double dt) {
         grid->cells[i].Q = Qs_new[i];
         total += Qs_new[i];
     }
-
 }
 
-// requires Conway_Cells
-template <typename CellType>
-void Solver<CellType>::conway_step() {
 
-    if (grid->cells[0].cell_type != 2) {
-        cerr << "conway_step called on Mesh with cell_type !=2, you must use Conway_Cells" << endl;
+// Evolution Step for Conway's Game of Life, requires conway_cell
+template <typename CellType>
+void Solver<CellType>::conway() {
+
+    // make sure that the cell type is correct
+    if constexpr (is_same_v<CellType, Conway_Cell> == false) {
+        cerr << "conway step called on Mesh with wrong cell type, you must use Conway_Cells" << endl;
         exit(EXIT_FAILURE);
     }
+
 
     vector<int> Qs_new;
     Qs_new.reserve(grid->cells.size());
@@ -116,7 +108,7 @@ void Solver<CellType>::conway_step() {
 
         }
 
-
+        // also count cell on top left
         if (grid->cells[i].edges.size()>=2) {
             if (grid->cells[i].edges[1].is_boundary == false) {
                 if (grid->cells[i].edges[1].neighbour->edges.size()>=1) {
@@ -127,6 +119,7 @@ void Solver<CellType>::conway_step() {
             }
         }
 
+        // also count cell on top right
         if (grid->cells[i].edges.size()>=2) {
             if (grid->cells[i].edges[1].is_boundary == false) {
                 if (grid->cells[i].edges[1].neighbour->edges.size()>=3) {
@@ -137,6 +130,7 @@ void Solver<CellType>::conway_step() {
             }
         }   
 
+        // also count cell on bottom left
         if (grid->cells[i].edges.size()>=4) {
             if (grid->cells[i].edges[3].is_boundary == false) {
                 if (grid->cells[i].edges[3].neighbour->edges.size()>=1) {
@@ -147,6 +141,7 @@ void Solver<CellType>::conway_step() {
             }
         }  
 
+        // also count cell on bottom right
         if (grid->cells[i].edges.size()>=4) {
             if (grid->cells[i].edges[3].is_boundary == false) {
                 if (grid->cells[i].edges[3].neighbour->edges.size()>=3) {
@@ -175,12 +170,31 @@ void Solver<CellType>::conway_step() {
 
 }
 
-// requires Q_Cells and 1D cartesian mesh, v_x and v_y >= 0! since upwind scheme doesnt work otherwhise
-template <typename CellType>
-void Solver<CellType>::advection_finite_difference_upwind_cartesian(double dt, Point v) {
 
-    if (v.x < 0 || v.y < 0) {
-        cerr << "v.x or v.y is < 0. This is not allowed for current version of cartesian upwind advection scheme" << endl;
+// SOLVER: ADVECTION --------------------------------------------------------------------------------------
+// FV Upwind Advection on cartesian or Vmesh, requires Q_Cells
+template <typename CellType>
+void Solver<CellType>::advection(double dt, Point v) {
+
+    // make sure that the cell type is correct
+    if constexpr (is_same_v<CellType, Q_Cell> == false) {
+        cerr << "advection step called on Mesh with wrong cell type, you must use Q_Cells" << endl;
+        exit(EXIT_FAILURE);
+    }
+
+    if (grid->is_cartesian) {
+        advection_cartesian(dt, v);
+    } else {
+        advection_vmesh(dt, v);
+    }
+}
+
+// FV Upwind Advection, requires Q_Cells and cartesian mesh
+template <typename CellType>
+void Solver<CellType>::advection_cartesian(double dt, Point v) {
+
+    if (dt * abs(v.x) >= grid->cells[0].edges[1].length || dt * abs(v.y) >= grid->cells[0].edges[2].length) {
+        cerr << "the CFL timestep condition isnt fullfilled, please make sure that dt < dx/v. otherwise the simulation will show unstable behaviour" << endl;
         exit(EXIT_FAILURE);
     }
 
@@ -192,35 +206,27 @@ void Solver<CellType>::advection_finite_difference_upwind_cartesian(double dt, P
 
         double Qi_np1 = 0;
         double Qi_n = grid->cells[i].Q;
+        double Qim1x_n = 0;
+        double Qim1y_n = 0;
         double dx = grid->cells[i].edges[1].length;
         double dy = grid->cells[i].edges[2].length;
 
-
-        if (dt * v.x >= dx || dt * v.y >= dy) {
-            cerr << "the CFL timestep condition isnt fullfilled, please make sure that dt < dx/v. otherwise the simulation will show unstable behaviour" << endl;
-            exit(EXIT_FAILURE);
+        // find upwind Q values
+        if (v.x > 0 && grid->cells[i].edges[0].is_boundary == false) {
+            Qim1x_n = grid->cells[i].edges[0].neighbour->getQ();
+        }
+        if (v.x < 0 && grid->cells[i].edges[2].is_boundary == false) {
+            Qim1x_n = grid->cells[i].edges[2].neighbour->getQ();
+        }
+        if (v.y > 0 && grid->cells[i].edges[3].is_boundary == false) {
+            Qim1y_n = grid->cells[i].edges[3].neighbour->getQ();
+        }
+        if (v.y < 0 && grid->cells[i].edges[1].is_boundary == false) {
+            Qim1y_n = grid->cells[i].edges[1].neighbour->getQ();
         }
 
-        // Qi_np1 = Qi_n - v * (dt/dx) * (Qi_n - 0);
-
-        // double Qim1_n = grid->q_cells[i].edges[0].neighbour->getQ();
-
-        // Qi_np1 = Qi_n - v * (dt/dx) * (Qi_n - Qim1_n);
-
-        if (grid->cells[i].edges[0].is_boundary && grid->cells[i].edges[3].is_boundary) {
-            Qi_np1 = Qi_n - v.x * (dt/dx) * (Qi_n - 0) - v.y * (dt/dy) * (Qi_n - 0);
-        } else if (grid->cells[i].edges[0].is_boundary) {
-            double Qim1y_n = grid->cells[i].edges[3].neighbour->getQ();
-            Qi_np1 = Qi_n - v.x * (dt/dx) * (Qi_n - 0) - v.y * (dt/dy) * (Qi_n - Qim1y_n);
-        } else if (grid->cells[i].edges[3].is_boundary) {
-            double Qim1x_n = grid->cells[i].edges[0].neighbour->getQ();
-            Qi_np1 = Qi_n - v.x * (dt/dx) * (Qi_n - Qim1x_n) - v.y * (dt/dy) * (Qi_n - 0);
-        } else {
-            double Qim1x_n = grid->cells[i].edges[0].neighbour->getQ();
-            double Qim1y_n = grid->cells[i].edges[3].neighbour->getQ();
-            Qi_np1 = Qi_n - v.x * (dt/dx) * (Qi_n - Qim1x_n) - v.y * (dt/dy) * (Qi_n - Qim1y_n);
-
-        }
+        // calculate new Q
+        Qi_np1 = Qi_n - abs(v.x) * (dt/dx) * (Qi_n - Qim1x_n) - abs(v.y) * (dt/dy) * (Qi_n - Qim1y_n);
 
         new_Qs.push_back(Qi_np1);
 
@@ -235,7 +241,7 @@ void Solver<CellType>::advection_finite_difference_upwind_cartesian(double dt, P
 
 }
 
-
+// FV Upwind Advection on Vmesh, requires Q_Cells
 template <typename CellType>
 void Solver<CellType>::advection_vmesh(double dt, Point v) {
 
