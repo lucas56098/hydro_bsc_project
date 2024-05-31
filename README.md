@@ -46,6 +46,7 @@ project to eventually do hydrodynamics on different meshes, with maybe different
   <img src="/figures/0animation_vmesh_circle_upright.gif" alt="0animation_vmesh_circle_upright" width="45%">
   <img src="/figures/0animation_vmesh_circle_right.gif" alt="0animation_vmesh_circle_right" width="45%">
 </p>
+
 <p align="center">
   <img src="/figures/0animation_cmesh_circle_upright.gif" alt="0animation_cmesh_circle_upright" width="45%">
   <img src="/figures/0animation_cmesh_circle_right.gif" alt="0animation_cmesh_circle_right" width="45%">
@@ -57,7 +58,17 @@ project to eventually do hydrodynamics on different meshes, with maybe different
 Higher angle dependence for Cartesian Mesh, error 45deg approx equal, for 0deg cmesh has lower error than vmesh
 
 ---
+### Lloyd's Algorithm
+
+<p align="center">
+  <img src="/figures/0lloyds_algorithm.gif" alt="0animation_vmesh_circle_upright" width="60%">
+</p>
+<p align="center">
+  <img src="/figures/0L1_error_over_time_up_right_comp_vmesh.png" alt="0L1_error_over_time_up_right_comp_vmesh" width="45%">
+  <img src="/figures/0L1_error_over_time_lloyd.png" alt="0L1_error_over_time_up_right_comp_cmesh" width="45%">
+</p>
+
+
 Further ideas still to follow:
-- Lloyd's algorithm for centroid mesh
 - Repeating Boundary Conditions on Vmesh/Cmesh
 - Eventually Shallow Water Equation

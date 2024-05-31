@@ -27,15 +27,16 @@ int main () {
 
     // GRID GENERATION ------------------------------------
     Mesh<Q_Cell> grid;
-    grid.generate_grid(cartesian, is_1D, N_row);
+    grid.generate_grid(cartesian, is_1D, N_row, 20);
 
     // INITIAL CONDITIONS ---------------
     //grid.initialize_Q_cells(0, 60, 1, 1);
     grid.initalize_Q_circle();
     grid.save_Q_diff(0, true, true);
-    grid.save_L1_adv_circle(0, true, Point(0.5, 0.5));
+    grid.save_L1_adv_circle(0, true, Point(0.5, 0));
     //grid.save_L1_adv_1Dstepfunc(0, true, 0.5, 0, 0.1);
 
+    
     // SIMULATION -----------------------------------------
     Solver<Q_Cell> solver(&grid);
 
@@ -45,7 +46,7 @@ int main () {
         if (i%save_iter == 0) {
             grid.save_mesh(i, file_name, dt);
             grid.save_Q_diff(i * dt, false, true);
-            grid.save_L1_adv_circle(i * dt, false, Point(0.5, 0.5));
+            grid.save_L1_adv_circle(i * dt, false, Point(0.5, 0));
             //grid.save_L1_adv_1Dstepfunc(i*dt, false, 0.5, 0, 0.1);
             cout << i << endl;
         }
@@ -53,7 +54,7 @@ int main () {
         // different update steps for the solvers
         //solver.diffusion_like(dt);
         //solver.conway();
-        solver.advection(dt, Point(0.5, 0.5));
+        solver.advection(dt, Point(0.5, 0));
     }
 
     cout << "done" << endl;

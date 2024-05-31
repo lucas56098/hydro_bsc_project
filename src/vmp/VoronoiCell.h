@@ -30,6 +30,7 @@ public:
     void generate_halfplane_vector(vector<Point> pts, vector<int> indices);
     double get_signed_angle(Point u, Point v);
     long long calculate_cell_memory(bool use_capacity);
+    Point get_centroid();
 private:
     void search_hp_closest_to_seed(Halfplane &first_hp);
 

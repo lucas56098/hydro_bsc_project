@@ -126,7 +126,7 @@ vector<Point> Mesh<CellType>::generate_seed_points(int N, bool fixed_random_seed
 // GRID GENERATION: -------------------------------------------------------------------------------
 // calls the generate Mesh functions depending on specified options (cartesian, 1D/2D, N_row)
 template <typename CellType>
-void Mesh<CellType>::generate_grid(bool cartesian, bool is_1D, int N_row) {
+void Mesh<CellType>::generate_grid(bool cartesian, bool is_1D, int N_row, int lloyd_iterations) {
 
     if (cartesian) {
         // generate cartesian mesh
@@ -149,7 +149,7 @@ void Mesh<CellType>::generate_grid(bool cartesian, bool is_1D, int N_row) {
         } else {
             // do it in 2D
             vector<Point> pts = generate_seed_points(N_row * N_row, true, 0, 1, 42, true, 100, 1);
-            this->generate_vmesh2D(pts);
+            this->generate_vmesh2D(pts, lloyd_iterations);
             is_cartesian = false;
         }
 
@@ -235,10 +235,23 @@ void Mesh<CellType>::generate_uniform_grid2D(Point start, int n_hor, int n_vert,
 
 // generates vmesh using vmp and converts it into data usable for this mesh type
 template <typename CellType>
-void Mesh<CellType>::generate_vmesh2D(vector<Point> pts) {
+void Mesh<CellType>::generate_vmesh2D(vector<Point> pts, int lloyd_iterations) {
 
     VoronoiMesh vmesh(pts);
     vmesh.do_point_insertion();
+
+    // do iterations of lloyds algorithm as preprocessing
+    for (int i = 0; i<lloyd_iterations; i++) {
+
+            vector<Point> centroids;
+        for (int i = 0; i<vmesh.vcells.size(); i++) {
+            centroids.push_back(vmesh.vcells[i].get_centroid());
+        }
+
+        vmesh = VoronoiMesh(centroids);
+        vmesh.do_point_insertion();
+
+    }
 
     // loop through all cells to set everything but neighbour relations
     for (int i = 0; i<vmesh.vcells.size(); i++) {

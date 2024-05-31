@@ -22,7 +22,7 @@ public:
     bool is_cartesian = false;
     
     // generate mesh
-    void generate_grid(bool cartesian, bool is_1D, int N_row);
+    void generate_grid(bool cartesian, bool is_1D, int N_row, int lloyd_iterations = 0);
     
     // initial conditions
     void initialize_Q_cells(int a, int b, double value = 1, int step = 1);
@@ -43,7 +43,7 @@ private:
 
     // different grid generations
     void generate_uniform_grid2D(Point start, int n_hor, int n_vert, double distx, double disty);
-    void generate_vmesh2D(vector<Point> pts);
+    void generate_vmesh2D(vector<Point> pts, int lloyd_iterations);
     void generate_uniform_grid1D(Point start, int n, double dist);
     void generate_vmesh1D(vector<Point> pts);
 };

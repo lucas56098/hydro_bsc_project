@@ -311,3 +311,22 @@ long long VoronoiCell::calculate_cell_memory(bool use_capacity) {
 
     return total_size;
 }
+
+
+Point VoronoiCell::get_centroid() {
+
+    double A = get_area();
+
+    double sum_x = 0;
+    double sum_y = 0;
+
+    for (int i = 0; i<verticies.size(); i++) {
+        sum_x += (verticies[i].x + verticies[(i+1)%verticies.size()].x)*(verticies[i].x * verticies[(i+1)%verticies.size()].y - verticies[(i+1)%verticies.size()].x * verticies[i].y);
+        sum_y += (verticies[i].y + verticies[(i+1)%verticies.size()].y)*(verticies[i].x * verticies[(i+1)%verticies.size()].y - verticies[(i+1)%verticies.size()].x * verticies[i].y);
+    }
+
+    double C_x = -sum_x/(6*A);
+    double C_y = -sum_y/(6*A);
+
+    return Point(C_x, C_y);
+}
