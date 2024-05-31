@@ -9,6 +9,7 @@
 #include "cell_types/Q_Cell.h"
 #include "cell_types/Conway_Cell.h"
 #include "vmp/VoronoiMesh.h"
+#include "utilities/Functions.h"
 #include <algorithm>
 #include <type_traits>
 #include <random>
@@ -416,10 +417,26 @@ void Mesh<CellType>::initialize_Q_cells(int a, int b, double value, int step) {
 
 }
 
+// sets the initial condition according to given function
+template <typename CellType>
+void Mesh<CellType>::initalize_Q_circle(Point p0, double r) {
+
+    // make sure that the cell type is correct
+    if constexpr (is_same_v<CellType, Q_Cell> == false) {
+        cerr << "initalize_Q_circle called with wrong cell type, you must use Q_Cells" << endl;
+        exit(EXIT_FAILURE);
+    }
+
+    for (int i = 0; i < cells.size(); i++) {
+        cells[i].Q = advecting_circle(cells[i].seed, 0, Point(0, 0), p0, r);
+    }
+
+}
+
 // SAVE DATA TO FILE ------------------------------------------------------------------------------
 // saves mesh into csv file readable for python script
 template <typename CellType>
-void Mesh<CellType>::save_mesh(int file_nr, string name) {
+void Mesh<CellType>::save_mesh(int file_nr, string name, double dt) {
 
     string filename;
     filename = "../src/files/" + name + to_string(file_nr) + ".csv"; 
@@ -455,6 +472,8 @@ void Mesh<CellType>::save_mesh(int file_nr, string name) {
 
         output_file << "|";
 
+        output_file << file_nr * dt << ",";
+
         // if cell type is Q_cell or Conway Cell save Q
         if constexpr (is_same_v<CellType, Q_Cell> || is_same_v<CellType, Conway_Cell>) {
             output_file << cells[i].Q;
@@ -471,7 +490,7 @@ void Mesh<CellType>::save_mesh(int file_nr, string name) {
 
 // function to save the change in the summed up Q value over the whole grid
 template <typename CellType>
-void Mesh<CellType>::save_Q_diff(bool reset_file, bool is_density) {
+void Mesh<CellType>::save_Q_diff(double t, bool reset_file, bool is_density) {
 
     double total_Q = 0;
 
@@ -497,9 +516,68 @@ void Mesh<CellType>::save_Q_diff(bool reset_file, bool is_density) {
     }
 
     // write caluclated difference in file
-    output_file << total_Q-total_Q_initial << ",";
+    output_file << t << "," << total_Q-total_Q_initial << endl;
+
+    output_file.close();
     
+
 }
+
+// function to calculate and store the L1 error of an advecting circle, requires Q_cells
+template <typename CellType>
+void Mesh<CellType>::save_L1_adv_circle(double t, bool reset_file, Point v, Point p0, double r) {
+
+    vector<double> Qs_num;
+    vector<double> Qs_ana;
+    Qs_num.reserve(cells.size());
+    Qs_ana.reserve(cells.size());
+
+    for (int i = 0; i<cells.size(); i++) {
+        Qs_num.push_back(cells[i].Q);
+        Qs_ana.push_back(advecting_circle(cells[i].seed, t, v, p0, r));
+    }
+
+    // open new file or in append mode
+    ofstream output_file;
+    if (reset_file) {
+        output_file = ofstream("../src/files/L1_error.csv");
+    } else {
+        output_file = ofstream("../src/files/L1_error.csv", ios::app);
+    }
+
+    // write caluclated difference in file
+    output_file << t << "," << L1_error(Qs_num, Qs_ana) << endl;
+    output_file.close();
+}
+
+
+// function to calculate and store the L1 error of an advecting circle, requires Q_cells
+template <typename CellType>
+void Mesh<CellType>::save_L1_adv_1Dstepfunc(double t, bool reset_file, double v, double a0, double b0) {
+
+    vector<double> Qs_num;
+    vector<double> Qs_ana;
+    Qs_num.reserve(cells.size());
+    Qs_ana.reserve(cells.size());
+
+    for (int i = 0; i<cells.size(); i++) {
+        Qs_num.push_back(cells[i].Q);
+        Qs_ana.push_back(advecting1D_stepfunc(cells[i].seed, t, v, a0, b0));
+    }
+
+    // open new file or in append mode
+    ofstream output_file;
+    if (reset_file) {
+        output_file = ofstream("../src/files/L1_error.csv");
+    } else {
+        output_file = ofstream("../src/files/L1_error.csv", ios::app);
+    }
+
+    // write caluclated difference in file
+    output_file << t << "," << L1_error(Qs_num, Qs_ana) << endl;
+    output_file.close();
+}
+
 
 
 template <typename CellType>

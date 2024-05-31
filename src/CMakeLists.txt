@@ -20,6 +20,9 @@ add_executable(hydro
     cell_types/Cell.cpp 
     cell_types/Q_Cell.cpp
     cell_types/Conway_Cell.cpp
+
+    # further utilities
+    utilities/Functions.cpp
     
     # imported voronoi_mesh_project
     vmp/Halfplane.cpp 

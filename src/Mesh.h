@@ -26,10 +26,14 @@ public:
     
     // initial conditions
     void initialize_Q_cells(int a, int b, double value = 1, int step = 1);
+    void initalize_Q_circle(Point p0 = Point(0.5, 0.5), double r = 0.1);
 
     // save mesh
-    void save_mesh(int file_nr, string name);
-    void save_Q_diff(bool reset_file = false, bool is_density = true);
+    void save_mesh(int file_nr, string name, double dt);
+    void save_Q_diff(double t, bool reset_file = false, bool is_density = true);
+    void save_L1_adv_circle(double t, bool reset_file, Point v = Point(0.5, 0.3), Point p0 = Point(0.5, 0.5), double r = 0.1);
+    void save_L1_adv_1Dstepfunc(double t, bool reset_file, double v = 0.5, double a0 = 0, double b0 = 0.1);
+
 
 private:
 
