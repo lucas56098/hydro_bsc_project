@@ -43,7 +43,7 @@ private:
 
     // different grid generations
     void generate_uniform_grid2D(Point start, int n_hor, int n_vert, double distx, double disty, bool repeating = false);
-    void generate_vmesh2D(vector<Point> pts, int lloyd_iterations);
+    void generate_vmesh2D(vector<Point> pts, int lloyd_iterations, bool repeating = false);
     void generate_uniform_grid1D(Point start, int n, double dist, bool repeating = false);
     void generate_vmesh1D(vector<Point> pts, bool repeating = false);
 };

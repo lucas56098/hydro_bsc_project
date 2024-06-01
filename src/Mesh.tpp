@@ -124,7 +124,7 @@ vector<Point> Mesh<CellType>::generate_seed_points(int N, bool fixed_random_seed
 
 
 // GRID GENERATION: -------------------------------------------------------------------------------
-// calls the generate Mesh functions depending on specified options (cartesian, 1D/2D, N_row)
+// calls the generate Mesh functions depending on specified options (cartesian, 1D/2D, N_row, optional lloyd preprocessing, repeating boundary conditions)
 template <typename CellType>
 void Mesh<CellType>::generate_grid(bool cartesian, bool is_1D, int N_row, int lloyd_iterations, bool repeating) {
 
@@ -149,7 +149,7 @@ void Mesh<CellType>::generate_grid(bool cartesian, bool is_1D, int N_row, int ll
         } else {
             // do it in 2D
             vector<Point> pts = generate_seed_points(N_row * N_row, true, 0, 1, 42, true, 100, 1);
-            this->generate_vmesh2D(pts, lloyd_iterations);
+            this->generate_vmesh2D(pts, lloyd_iterations, repeating);
             is_cartesian = false;
         }
 
@@ -240,26 +240,73 @@ void Mesh<CellType>::generate_uniform_grid2D(Point start, int n_hor, int n_vert,
 
 // generates vmesh using vmp and converts it into data usable for this mesh type
 template <typename CellType>
-void Mesh<CellType>::generate_vmesh2D(vector<Point> pts, int lloyd_iterations) {
+void Mesh<CellType>::generate_vmesh2D(vector<Point> pts, int lloyd_iterations, bool repeating) {
 
+    // preprocessing step to change pts for mesh into pts for approx centroidal vmesh
+    if (lloyd_iterations != 0) {
+        cout << "start lloyd_iterations" << endl;
+
+        // calculate original mesh
+        VoronoiMesh initial_vmesh(pts);
+        initial_vmesh.do_point_insertion();
+        
+        // do multiple iterations of lloyds algorithm
+        for (int i = 0; i<lloyd_iterations; i++) {
+
+            // calculate centroids
+            vector<Point> centroids;
+            centroids.reserve(initial_vmesh.vcells.size());
+            for (int i = 0; i<initial_vmesh.vcells.size(); i++) {
+                centroids.push_back(initial_vmesh.vcells[i].get_centroid());
+            }
+
+            // replace original mesh seeds with centroids and calculate mesh again
+            initial_vmesh = VoronoiMesh(centroids);
+            initial_vmesh.do_point_insertion();
+
+        }
+
+        // after iterations store final calculated seeds in pts
+        vector<Point> centroidal_seeds;
+        centroidal_seeds.reserve(initial_vmesh.vcells.size());
+        for (int i = 0; i<initial_vmesh.vcells.size(); i++) {
+            centroidal_seeds.push_back(initial_vmesh.vcells[i].seed);
+        }
+        pts = centroidal_seeds;
+        cout << "finished lloyd_iterations" << endl;
+    }
+
+
+    // preprocessing for repeating boundary conditions
+    vector<Point> points_plus_ghost;
+    int initial_pts_size = pts.size();
+    if (repeating) {
+        points_plus_ghost.reserve(pts.size() * 9);
+
+        // put points into (middle/middle) block by shrinking them by a factor of 3
+        for (int i = 0; i<pts.size(); i++) {
+            points_plus_ghost.emplace_back((pts[i].x/3.0) + 1.0/3.0, (pts[i].y/3.0) + 1.0/3.0);
+        }
+
+        // add the same shrinked points again but shifted in all other 8 third blocks (up/middle/down, left/middle/right)
+        vector<double> pos_X = {0., 1., 2., 0., 2., 0., 1., 2.};
+        vector<double> pos_Y = {0., 0., 0., 1., 1., 2., 2., 2.};
+        for (int i = 0; i<8; i++) {
+            for (int j = 0; j<pts.size(); j++) {
+                points_plus_ghost.emplace_back((pts[j].x/3.0) + pos_X[i] * 1.0/3.0, (pts[j].y/3.0) + pos_Y[i] * 1.0/3.0);
+            }
+        }
+        
+        // replace pts with pts + additional ghost cells (eg 8 times the pts all around)
+        pts = points_plus_ghost;
+    }
+
+    // generate vmesh
     VoronoiMesh vmesh(pts);
     vmesh.do_point_insertion();
 
-    // do iterations of lloyds algorithm as preprocessing
-    for (int i = 0; i<lloyd_iterations; i++) {
-
-            vector<Point> centroids;
-        for (int i = 0; i<vmesh.vcells.size(); i++) {
-            centroids.push_back(vmesh.vcells[i].get_centroid());
-        }
-
-        vmesh = VoronoiMesh(centroids);
-        vmesh.do_point_insertion();
-
-    }
-
-    // loop through all cells to set everything but neighbour relations
-    for (int i = 0; i<vmesh.vcells.size(); i++) {
+    // loop through all cells (of initial pts vector) to set everything but neighbour relations
+    for (int i = 0; i<initial_pts_size; i++) {
 
         // set seed and define edge vector
         Point seedin(vmesh.vcells[i].seed.x, vmesh.vcells[i].seed.y);
@@ -284,22 +331,58 @@ void Mesh<CellType>::generate_vmesh2D(vector<Point> pts, int lloyd_iterations) {
 
     }
 
-    // loop through everything and set neighbour relations
-    for (int i = 0; i<vmesh.vcells.size(); i++) {
+    // loop through all cells (of initial pts size) and set neighbour relations
+    for (int i = 0; i<initial_pts_size; i++) {
 
         cells[i].volume = vmesh.vcells[i].get_area();
 
         for (int j = 0; j<vmesh.vcells[i].edges.size(); j++) {
 
-            // neighbour index as used in vmesh
+            // neighbour index as used in vmesh, using modulo here to get neighbour relations
+            // correct even for repeating boundaries since index will be multiple of original index
             int neigbour_index;
-            neigbour_index = vmesh.vcells[i].edges[j].index2;
+            neigbour_index = (vmesh.vcells[i].edges[j].index2)%initial_pts_size;
 
             // exclude boundaries
             if (neigbour_index >= 0) {
 
                 // neighbour as defined before over index now with adress
                 cells[i].edges[j].neighbour = &cells[neigbour_index];
+
+            }
+
+        }
+
+    }
+
+    // if repeating boundary conditions rescale the mesh back to normal
+    if (repeating) {
+
+        // loop through all cells
+        for (int i = 0; i<cells.size(); i++) {
+
+            // redo scaling for seed and volume
+            cells[i].seed.x = (cells[i].seed.x - 1.0/3.0) * 3.0;
+            cells[i].seed.y = (cells[i].seed.y - 1.0/3.0) * 3.0;
+            cells[i].volume = cells[i].volume * 3.0 * 3.0;
+
+            // loop through all faces
+            for (int j = 0; j<cells[i].edges.size(); j++) {
+
+                face f = cells[i].edges[j];
+
+                // redo scaling for face positions
+                f.a.x = (f.a.x - 1.0/3.0) * 3.0;
+                f.a.y = (f.a.y - 1.0/3.0) * 3.0;
+                f.b.x = (f.b.x - 1.0/3.0) * 3.0;
+                f.b.y = (f.b.y - 1.0/3.0) * 3.0;
+                cells[i].edges[j].a.x = f.a.x;
+                cells[i].edges[j].a.y = f.a.y;
+                cells[i].edges[j].b.x = f.b.x;
+                cells[i].edges[j].b.y = f.b.y;
+
+                // recalculate length with correct scaling
+                cells[i].edges[j].length = sqrt((f.a.x - f.b.x)*(f.a.x - f.b.x) + (f.a.y - f.b.y)*(f.a.y - f.b.y));
 
             }
 
