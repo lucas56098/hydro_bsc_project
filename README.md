@@ -200,6 +200,8 @@ just another example of using loyd's algorithm + repeating boundary conditions
 ### Next: Shallow Water Equations
 
 conservative form:
-$${\frac {\partial (\rho \eta )}{\partial t}}+{\frac {\partial (\rho \eta u)}{\partial x}}+{\frac {\partial (\rho \eta v)}{\partial y}}=0,\\[3pt]{\frac {\partial (\rho \eta u)}{\partial t}}+{\frac {\partial }{\partial x}}\left(\rho \eta u^{2}+{\frac {1}{2}}\rho g\eta ^{2}\right)+{\frac {\partial (\rho \eta uv)}{\partial y}}=0,\\[3pt]{\frac {\partial (\rho \eta v)}{\partial t}}+{\frac {\partial }{\partial y}}\left(\rho \eta v^{2}+{\frac {1}{2}}\rho g\eta ^{2}\right)+{\frac {\partial (\rho \eta uv)}{\partial x}}=0 $$
+$${\frac {\partial (\rho \eta )}{\partial t}}+{\frac {\partial (\rho \eta u)}{\partial x}}+{\frac {\partial (\rho \eta v)}{\partial y}}=0 $$
+$${\frac {\partial (\rho \eta u)}{\partial t}}+{\frac {\partial }{\partial x}}\left(\rho \eta u^{2}+{\frac {1}{2}}\rho g\eta ^{2}\right)+{\frac {\partial (\rho \eta uv)}{\partial y}}=0$$ 
+$${\frac {\partial (\rho \eta v)}{\partial t}}+{\frac {\partial }{\partial y}}\left(\rho \eta v^{2}+{\frac {1}{2}}\rho g\eta ^{2}\right)+{\frac {\partial (\rho \eta uv)}{\partial x}}=0 $$
 
 with $\rho =$ density, $\eta =$fluid column height, $(u, v) = $ velocity averaged over column, $g = $gravitational acceleation. Assumptions: horizontal bed, neglible coriolis, friction, viscosity + wavelength >> water depth.
