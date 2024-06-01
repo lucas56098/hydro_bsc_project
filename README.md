@@ -186,6 +186,8 @@ neigbour_index = (vmesh.vcells[i].edges[j].index2)%initial_pts_size;
 ```
 plus additional rescaling of quantities after all that
 
+-  Question: What about L1 error calculation with repeated boundary conditions. Is this something we really need? Idk of a really simple way to do this yet
+
 
 
 ---
