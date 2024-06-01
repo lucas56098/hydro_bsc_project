@@ -126,17 +126,17 @@ vector<Point> Mesh<CellType>::generate_seed_points(int N, bool fixed_random_seed
 // GRID GENERATION: -------------------------------------------------------------------------------
 // calls the generate Mesh functions depending on specified options (cartesian, 1D/2D, N_row)
 template <typename CellType>
-void Mesh<CellType>::generate_grid(bool cartesian, bool is_1D, int N_row, int lloyd_iterations) {
+void Mesh<CellType>::generate_grid(bool cartesian, bool is_1D, int N_row, int lloyd_iterations, bool repeating) {
 
     if (cartesian) {
         // generate cartesian mesh
         if (is_1D) {
             // do it in 1D
-            this->generate_uniform_grid1D(Point(0, 0), N_row, 1.0/static_cast<double>(N_row));
+            this->generate_uniform_grid1D(Point(0, 0), N_row, 1.0/static_cast<double>(N_row), repeating);
             is_cartesian = true;
         } else {
             // do it in 2D
-            this->generate_uniform_grid2D(Point(0, 0), N_row, N_row, 1.0/static_cast<double>(N_row), 1.0/static_cast<double>(N_row));
+            this->generate_uniform_grid2D(Point(0, 0), N_row, N_row, 1.0/static_cast<double>(N_row), 1.0/static_cast<double>(N_row), repeating);
             is_cartesian = true;
         }
     } else {
@@ -144,7 +144,7 @@ void Mesh<CellType>::generate_grid(bool cartesian, bool is_1D, int N_row, int ll
         if (is_1D) {
             // do it in 1D
             vector<Point> pts = generate_seed_points(N_row, true, 0, 1, 42, true, 100, 1);
-            this->generate_vmesh1D(pts);
+            this->generate_vmesh1D(pts, repeating);
             is_cartesian = false;
         } else {
             // do it in 2D
@@ -162,7 +162,7 @@ void Mesh<CellType>::generate_grid(bool cartesian, bool is_1D, int N_row, int ll
 
 // generates a uniform grid with all the neighbour relations and so on
 template <typename CellType>
-void Mesh<CellType>::generate_uniform_grid2D(Point start, int n_hor, int n_vert, double distx, double disty) {
+void Mesh<CellType>::generate_uniform_grid2D(Point start, int n_hor, int n_vert, double distx, double disty, bool repeating) {
 
     for (int b = 0; b<n_vert; b++) {
         for (int a = 0; a<n_hor; a++) {
@@ -186,10 +186,15 @@ void Mesh<CellType>::generate_uniform_grid2D(Point start, int n_hor, int n_vert,
 
             // set correct boundary flags
             f0.is_boundary = false; f1.is_boundary = false; f2.is_boundary = false; f3.is_boundary = false;
-            if (a == 0) {f0.is_boundary = true;}
-            if (a == n_hor -1) {f2.is_boundary = true;}
-            if (b == 0) {f3.is_boundary = true;}
-            if (b == n_vert -1) {f1.is_boundary = true;}
+            if (a == 0 && repeating == false) {f0.is_boundary = true;}
+            if (a == n_hor -1 && repeating == false) {f2.is_boundary = true;}
+            if (b == 0 && repeating == false) {f3.is_boundary = true;}
+            if (b == n_vert -1 && repeating == false) {f1.is_boundary = true;}
+
+            if (n_vert == 1) {
+                f1.is_boundary = true;
+                f3.is_boundary = true;
+            }
 
             // push faces in edges vector
             edgesin.push_back(f0);
@@ -218,13 +223,13 @@ void Mesh<CellType>::generate_uniform_grid2D(Point start, int n_hor, int n_vert,
         for (int j = 0; j<cells[i].edges.size(); j++) {
             if (cells[i].edges[j].is_boundary == false) {
                 if (j == 0) {
-                    cells[i].edges[j].neighbour = &cells[i-1];
+                    cells[i].edges[j].neighbour = &cells[i - (i%n_hor) + ((i+n_hor - 1)%n_hor)];
                 } else if (j == 1) {
-                    cells[i].edges[j].neighbour = &cells[i+n_hor];
+                    cells[i].edges[j].neighbour = &cells[((((i - (i%n_hor))/n_hor)+1)%n_vert)*n_hor + (i%n_hor)];
                 } else if (j == 2) {
-                    cells[i].edges[j].neighbour = &cells[i+1];
+                    cells[i].edges[j].neighbour = &cells[i - (i%n_hor) + ((i + 1)%n_hor)];
                 } else if (j == 3) {
-                    cells[i].edges[j].neighbour = &cells[i-n_hor];
+                    cells[i].edges[j].neighbour = &cells[((((i - (i%n_hor))/n_hor)+n_vert - 1)%n_vert)*n_hor + (i%n_hor)];
                 }
                 
             }
@@ -308,14 +313,14 @@ void Mesh<CellType>::generate_vmesh2D(vector<Point> pts, int lloyd_iterations) {
 
 // generates a 1D uniform grid with all the neighbour relations and so on
 template <typename CellType>
-void Mesh<CellType>::generate_uniform_grid1D(Point start, int n, double dist) {
-    generate_uniform_grid2D(start, n, 1, dist, 1);
+void Mesh<CellType>::generate_uniform_grid1D(Point start, int n, double dist, bool repeating) {
+    generate_uniform_grid2D(start, n, 1, dist, 1, repeating);
 }
 
 
 // generates a 1D voronoi mesh, only works if points are between 0 and 1
 template <typename CellType>
-void Mesh<CellType>::generate_vmesh1D(vector<Point> pts) {
+void Mesh<CellType>::generate_vmesh1D(vector<Point> pts, bool repeating) {
 
     for (int i = 0; i < pts.size(); i++) {
         pts[i].y = 0.5;
@@ -380,6 +385,11 @@ void Mesh<CellType>::generate_vmesh1D(vector<Point> pts) {
             distr = sorted_pts[i+1].x - sorted_pts[i].x;
         }
 
+        if (repeating == true) {
+            f0.is_boundary = false;
+            f2.is_boundary = false;
+        }
+
         // push back faces
         edgesin.push_back(f0);
         edgesin.push_back(f1);
@@ -402,11 +412,11 @@ void Mesh<CellType>::generate_vmesh1D(vector<Point> pts) {
 
         cells[i].volume = cells[i].edges[0].length * cells[i].edges[1].length;
 
-        if (i != 0) {
-            cells[i].edges[0].neighbour = &cells[i-1];
+        if (cells[i].edges[0].is_boundary == false) {
+            cells[i].edges[0].neighbour = &cells[i - (i%cells.size()) + ((i+cells.size() - 1)%cells.size())];
         }
-        if (i != cells.size()-1) {
-            cells[i].edges[2].neighbour = &cells[i+1];
+        if (cells[i].edges[2].is_boundary == false) {
+            cells[i].edges[2].neighbour = &cells[i - (i%cells.size()) + ((i + 1)%cells.size())];
         }
 
     }

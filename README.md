@@ -68,6 +68,14 @@ Higher angle dependence for Cartesian Mesh, error 45deg approx equal, for 0deg c
   <img src="/figures/0L1_error_over_time_lloyd.png" alt="0L1_error_over_time_up_right_comp_cmesh" width="45%">
 </p>
 
+---
+### Repeating Boundary conditions (Cartesian)
+
+<p align="center">
+  <img src="/figures/0cartesian_repeating_boundary.gif" alt="0cartesian_repeating_boundary" width="45%">
+  <img src="/figures/0delta_Q_total_repeating_boundary.png" alt="0delta_Q_total_repeating_boundary" width="45%">
+</p>
+
 
 Further ideas still to follow:
 - Repeating Boundary Conditions on Vmesh/Cmesh
