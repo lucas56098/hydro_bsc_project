@@ -212,8 +212,8 @@ with $\rho =$ density, h = fluid column height, (u, v) =  velocity averaged over
 
 $ v := 0,  \partial_y \to 0 $
 
-$${\frac {\partial (\rho h )}{\partial t}}+{\frac {\partial (\rho h u)}{\partial x}}=0 $$
-$${\frac {\partial (\rho h u)}{\partial t}}+{\frac {\partial }{\partial x}}\left(\rho h u^{2}+{\frac {1}{2}}\rho gh ^{2}\right)=0 $$ 
+$$ {\frac {\partial (\rho h )}{\partial t}}+{\frac {\partial (\rho h u)}{\partial x}}=0 $$
+$$ {\frac {\partial (\rho h u)}{\partial t}}+{\frac {\partial }{\partial x}}\left(\rho h u^{2}+{\frac {1}{2}}\rho gh ^{2}\right)=0 $$ 
 
 Or written in an alternative way using
 $$ U = \begin{bmatrix} h \\ hu\end{bmatrix},\;\; F = \begin{bmatrix} hu \\ hu^2 + \frac{1}{2}gh^2\end{bmatrix} $$
