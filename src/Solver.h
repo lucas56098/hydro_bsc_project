@@ -20,6 +20,7 @@ public:
     void diffusion_like(double dt);
     void conway();
     void advection(double dt, Point v);
+    void shallow_water_1D_cartesian(double dt);
     
 private:
 

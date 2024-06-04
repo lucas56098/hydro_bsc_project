@@ -31,7 +31,7 @@ Point Solver<CellType>::get_normal_vec(Point a, Point b) {
     return Point(-Delta_y/norm, Delta_x/norm);
 }
 
-// SOLVERS (update the Mesh by a single step) ------------------------------------------------------
+// SOLVERS (update the Mesh by a single step) -----------------------------------------------------
 
 // Fake Diffusion Equation as first try, requires Q_cells, Q is a absolute value not a density
 template <typename CellType>
@@ -171,7 +171,7 @@ void Solver<CellType>::conway() {
 }
 
 
-// SOLVER: ADVECTION --------------------------------------------------------------------------------------
+// SOLVER: ADVECTION ------------------------------------------------------------------------------
 // FV Upwind Advection on cartesian or Vmesh, requires Q_Cells
 template <typename CellType>
 void Solver<CellType>::advection(double dt, Point v) {
@@ -299,6 +299,72 @@ void Solver<CellType>::advection_vmesh(double dt, Point v) {
 
     }
 
+
+}
+
+
+// SOLVER: Shallow Water Equations ----------------------------------------------------------------
+template<typename CellType>
+void Solver<CellType>::shallow_water_1D_cartesian(double dt) {
+
+    // make sure that the cell type is correct
+    if constexpr (is_same_v<CellType, SWE_Cell> == false) {
+        cerr << "shallow water step called on Mesh with wrong cell type, you must use SWE_Cells" << endl;
+        exit(EXIT_FAILURE);
+    }
+
+    // first calculate all new values and store in vectors
+
+    vector<double> h_new;
+    vector<double> u_new;
+    h_new.reserve(grid->cells.size());
+    u_new.reserve(grid->cells.size());
+
+    // loop through all cells to calcualte values
+    for (int i = 0; i<grid->cells.size(); i++) {
+
+        // get everything we need
+        double l_x = grid->cells[i].edges[1].length;
+        double g = 9.81;
+        double h_i_n = grid->cells[i].h;
+        double h_ip1_n = grid->cells[i].h; // will be later changed unless its a boundary
+        double h_im1_n = grid->cells[i].h; // will be later changed unless its a boundary
+        double u_i_n = grid->cells[i].u;
+        double u_ip1_n = 0;                // will be later changed unless its a boundary
+        double u_im1_n = 0;                // will be later changed unless its a boundary
+
+        if (grid->cells[i].edges[0].is_boundary == false) {
+            h_im1_n = grid->cells[i].edges[0].neighbour->get_h();
+            u_im1_n = grid->cells[i].edges[0].neighbour->get_u();
+        }
+        if (grid->cells[i].edges[2].is_boundary == false) {
+            h_ip1_n = grid->cells[i].edges[2].neighbour->get_h();
+            u_ip1_n = grid->cells[i].edges[2].neighbour->get_u();
+        }
+
+        // new values using FV with Lax Friedrichs Flux estimation
+        //double h_i_np1 = h_i_n - ((dt)/(2.0*l_x)) * ( ((h_im1_n*u_im1_n - h_i_n*u_i_n) - ((l_x)/(dt))*(h_i_n - h_im1_n)) - ((h_ip1_n*u_ip1_n - h_i_n*u_i_n) - ((l_x)/(dt))*(h_i_n - h_ip1_n)) );
+        //double h_i_np1 = h_i_n - ((dt)/(2.0*l_x)) * ( ((h_im1_n*u_im1_n - h_i_n*u_i_n) + ((l_x)/(dt))*(h_i_n - h_im1_n)) - ((h_ip1_n*u_ip1_n - h_i_n*u_i_n) - ((l_x)/(dt))*(h_i_n - h_ip1_n)) );
+        //double u_i_np1 = ((h_i_n * u_i_n)/(h_i_np1)) - ((dt)/(2.0*l_x*h_i_np1)) *  ( ((h_im1_n * u_im1_n * u_im1_n + (g/2.0)* h_im1_n * h_im1_n) - (h_i_n * u_i_n * u_i_n + (g/2.0)* h_i_n * h_i_n) - ((l_x)/(dt))*(h_i_n * u_i_n - h_im1_n * u_im1_n)) 
+        //                                                                           - ((h_ip1_n * u_ip1_n * u_ip1_n + (g/2.0)* h_ip1_n * h_ip1_n) - (h_i_n * u_i_n * u_i_n + (g/2.0)* h_i_n * h_i_n) - ((l_x)/(dt))*(h_i_n * u_i_n - h_ip1_n * u_ip1_n)) );
+        //double u_i_np1 = ((h_i_n * u_i_n)/(h_i_np1)) - ((dt)/(2.0*l_x*h_i_np1)) *  ( ((h_im1_n * u_im1_n * u_im1_n + (g/2.0)* h_im1_n * h_im1_n) - (h_i_n * u_i_n * u_i_n + (g/2.0)* h_i_n * h_i_n) + ((l_x)/(dt))*(h_i_n * u_i_n - h_im1_n * u_im1_n)) 
+        //                                                                           - ((h_ip1_n * u_ip1_n * u_ip1_n + (g/2.0)* h_ip1_n * h_ip1_n) - (h_i_n * u_i_n * u_i_n + (g/2.0)* h_i_n * h_i_n) - ((l_x)/(dt))*(h_i_n * u_i_n - h_ip1_n * u_ip1_n)) );
+    //    double h_i_np1 = h_i_n - ((dt)/(2.0*l_x)) * ( (-1*(h_im1_n*u_im1_n - h_i_n*u_i_n) + ((l_x)/(dt))*(h_i_n - h_im1_n)) - ( -1*(h_ip1_n*u_ip1_n - h_i_n*u_i_n) - ((l_x)/(dt))*(h_i_n - h_ip1_n)) );
+  //      double u_i_np1 = ((h_i_n * u_i_n)/(h_i_np1)) + ((dt)/(2.0*l_x*h_i_np1)) *  ( ((h_im1_n * u_im1_n * u_im1_n + (g/2.0)* h_im1_n * h_im1_n) - (h_i_n * u_i_n * u_i_n + (g/2.0)* h_i_n * h_i_n) - ((l_x)/(dt))*(h_i_n * u_i_n - h_im1_n * u_im1_n)) 
+//                                                                                   - ((h_ip1_n * u_ip1_n * u_ip1_n + (g/2.0)* h_ip1_n * h_ip1_n) - (h_i_n * u_i_n * u_i_n + (g/2.0)* h_i_n * h_i_n) + ((l_x)/(dt))*(h_i_n * u_i_n - h_ip1_n * u_ip1_n)) );
+
+        double h_i_np1 = h_i_n - (dt/(2*l_x)) * ( (h_ip1_n*u_ip1_n - h_im1_n*u_im1_n) + (l_x/dt)*(2*h_i_n - h_im1_n - h_ip1_n) );
+        double u_i_np1 = ((h_i_n*u_i_n)/h_i_np1) - (dt/(2*l_x*h_i_np1)) * ( (h_ip1_n*u_ip1_n*u_ip1_n + (g/2.0)*h_ip1_n*h_ip1_n) - ((h_im1_n*u_im1_n*u_im1_n + (g/2.0)*h_im1_n*h_im1_n)) + (l_x/dt)*(2*h_i_n*u_i_n - h_ip1_n*u_ip1_n - h_im1_n*u_im1_n) );
+
+        h_new.push_back(h_i_np1);
+        u_new.push_back(u_i_np1);
+    }
+    
+    // then apply all the changes
+    for (int i = 0; i<grid->cells.size(); i++) {
+        grid->cells[i].h = h_new[i];
+        grid->cells[i].u = u_new[i];
+    }
 
 }
 

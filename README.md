@@ -199,11 +199,54 @@ just another example of using loyd's algorithm + repeating boundary conditions
 </p>
 
 ---
-### Next: Shallow Water Equations
+### Shallow Water Equations
 
 conservative form:
-$${\frac {\partial (\rho \eta )}{\partial t}}+{\frac {\partial (\rho \eta u)}{\partial x}}+{\frac {\partial (\rho \eta v)}{\partial y}}=0 $$
-$${\frac {\partial (\rho \eta u)}{\partial t}}+{\frac {\partial }{\partial x}}\left(\rho \eta u^{2}+{\frac {1}{2}}\rho g\eta ^{2}\right)+{\frac {\partial (\rho \eta uv)}{\partial y}}=0$$ 
-$${\frac {\partial (\rho \eta v)}{\partial t}}+{\frac {\partial }{\partial y}}\left(\rho \eta v^{2}+{\frac {1}{2}}\rho g\eta ^{2}\right)+{\frac {\partial (\rho \eta uv)}{\partial x}}=0 $$
+$${\frac {\partial (\rho h )}{\partial t}}+{\frac {\partial (\rho h u)}{\partial x}}+{\frac {\partial (\rho h v)}{\partial y}}=0 $$
+$${\frac {\partial (\rho h u)}{\partial t}}+{\frac {\partial }{\partial x}}\left(\rho h u^{2}+{\frac {1}{2}}\rho gh ^{2}\right)+{\frac {\partial (\rho h uv)}{\partial y}}=0$$ 
+$${\frac {\partial (\rho h v)}{\partial t}}+{\frac {\partial }{\partial y}}\left(\rho h v^{2}+{\frac {1}{2}}\rho gh ^{2}\right)+{\frac {\partial (\rho h uv)}{\partial x}}=0 $$
 
-with $\rho =$ density, $\eta =$ fluid column height, $(u, v) = $ velocity averaged over column, $g = $ gravitational acceleation. Assumptions: horizontal bed, neglible coriolis, friction, viscosity + wavelength >> water depth.
+with $\rho =$ density, h = fluid column height, (u, v) =  velocity averaged over column, g = gravitational acceleation. Assumptions: horizontal bed, neglible coriolis, friction, viscosity + wavelength >> water depth.
+
+### 1D cartesian
+
+$ v := 0,  \partial_y \to 0 $
+
+$${\frac {\partial (\rho h )}{\partial t}}+{\frac {\partial (\rho h u)}{\partial x}}=0 $$
+$${\frac {\partial (\rho h u)}{\partial t}}+{\frac {\partial }{\partial x}}\left(\rho h u^{2}+{\frac {1}{2}}\rho gh ^{2}\right)=0$$ 
+
+Or written in an alternative way using
+$$
+U = \begin{bmatrix} h \\ hu\end{bmatrix},\;\; F = \begin{bmatrix} hu \\ hu^2 + \frac{1}{2}gh^2\end{bmatrix}
+$$
+$$
+\frac{\partial U}{\partial t} + \frac{\partial F}{\partial x} = 0
+$$
+FV Update Scheme using Lax-Friedrichs Flux. Idk how upwind should work here?
+$$
+U_i^{n+1} = U_i^n - \frac{\Delta t}{A} \biggl[F_{i-\frac{1}{2}}^n l_y - F_{i+\frac{1}{2}}^n l_y \biggr]$$
+$$
+F_{i-\frac{1}{2}}^n = \frac{1}{2} \biggl[ F_{i-1}^n + F_i^n\biggr] - \frac{l_x}{2\Delta t} \biggl[U_i^n - U_{i-1}^n\biggr]
+$$
+
+#### Example 1
+
+<p align="center">
+  <img src="/figures/1_left_swe_2D.gif" alt="1left_swe_2D" width="45%">
+  <img src="/figures/1_left_swe_2D_vel.gif" alt="1_left_swe_2D_vel" width="45%">
+</p>
+<p align="center">
+  <img src="/figures/1_left_swe_1D.gif" alt="1_left_swe_1D" width="45%">
+  <img src="/figures/1_left_swe_1D_vel.gif" alt="0adv_vmesh_rep_bound_grid_loyd" width="45%">
+</p>
+
+#### Example 2
+
+<p align="center">
+  <img src="/figures/1_mid_swe_2D.gif" alt="1_mid_swe_2D" width="45%">
+  <img src="/figures/1_mid_swe_2D_vel.gif" alt="1_mid_swe_2D_vel" width="45%">
+</p>
+<p align="center">
+  <img src="/figures/1_mid_swe_1D.gif" alt="0adv_vmesh_rep_bound_grid_no_loyd" width="45%">
+  <img src="/figures/1_mid_swe_1D_vel.gif" alt="1_mid_swe_1D_vel" width="45%">
+</p>

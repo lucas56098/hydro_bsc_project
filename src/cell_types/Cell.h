@@ -35,6 +35,18 @@ public:
         throw runtime_error("Q is not defined for base Cell");
     }
 
+    virtual double get_h() const {
+        throw runtime_error("h is not defined for base Cell");
+    }
+
+    virtual double get_u() const {
+        throw runtime_error("u is not defined for base Cell");
+    }
+
+    virtual double get_v() const {
+        throw runtime_error("v is not defined for base Cell");
+    }
+
 };
 
 #endif

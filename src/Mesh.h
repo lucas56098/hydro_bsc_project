@@ -4,6 +4,7 @@
 #include "cell_types/Point.h"
 #include "cell_types/Q_Cell.h"
 #include "cell_types/Conway_Cell.h"
+#include "cell_types/SWE_Cell.h"
 #include "vmp/VoronoiMesh.h"
 
 #ifndef Mesh_h

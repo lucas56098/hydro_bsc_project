@@ -8,6 +8,7 @@
 #include "cell_types/Point.h"
 #include "cell_types/Q_Cell.h"
 #include "cell_types/Conway_Cell.h"
+#include "cell_types/SWE_Cell.h"
 #include "vmp/VoronoiMesh.h"
 #include "utilities/Functions.h"
 #include <algorithm>
@@ -583,6 +584,11 @@ void Mesh<CellType>::save_mesh(int file_nr, string name, double dt) {
         // if cell type is Q_cell or Conway Cell save Q
         if constexpr (is_same_v<CellType, Q_Cell> || is_same_v<CellType, Conway_Cell>) {
             output_file << cells[i].Q;
+        }
+
+        // if cell type is SWE_cell save h, u, v
+        if constexpr (is_same_v<CellType, SWE_Cell>) {
+            output_file << cells[i].h << "," << cells[i].u << "," << cells[i].v;
         }
 
         output_file << endl;
