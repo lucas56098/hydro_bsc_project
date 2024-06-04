@@ -213,21 +213,14 @@ with $\rho =$ density, h = fluid column height, (u, v) =  velocity averaged over
 $ v := 0,  \partial_y \to 0 $
 
 $${\frac {\partial (\rho h )}{\partial t}}+{\frac {\partial (\rho h u)}{\partial x}}=0 $$
-$${\frac {\partial (\rho h u)}{\partial t}}+{\frac {\partial }{\partial x}}\left(\rho h u^{2}+{\frac {1}{2}}\rho gh ^{2}\right)=0$$ 
+$${\frac {\partial (\rho h u)}{\partial t}}+{\frac {\partial }{\partial x}}\left(\rho h u^{2}+{\frac {1}{2}}\rho gh ^{2}\right)=0 $$ 
 
 Or written in an alternative way using
-$$
-U = \begin{bmatrix} h \\ hu\end{bmatrix},\;\; F = \begin{bmatrix} hu \\ hu^2 + \frac{1}{2}gh^2\end{bmatrix}
-$$
-$$
-\frac{\partial U}{\partial t} + \frac{\partial F}{\partial x} = 0
-$$
+$$ U = \begin{bmatrix} h \\ hu\end{bmatrix},\;\; F = \begin{bmatrix} hu \\ hu^2 + \frac{1}{2}gh^2\end{bmatrix} $$
+$$ \frac{\partial U}{\partial t} + \frac{\partial F}{\partial x} = 0 $$
 FV Update Scheme using Lax-Friedrichs Flux. Idk how upwind should work here?
-$$
-U_i^{n+1} = U_i^n - \frac{\Delta t}{A} \biggl[F_{i-\frac{1}{2}}^n l_y - F_{i+\frac{1}{2}}^n l_y \biggr]$$
-$$
-F_{i-\frac{1}{2}}^n = \frac{1}{2} \biggl[ F_{i-1}^n + F_i^n\biggr] - \frac{l_x}{2\Delta t} \biggl[U_i^n - U_{i-1}^n\biggr]
-$$
+$$ U_i^{n+1} = U_i^n - \frac{\Delta t}{A} \biggl[F_{i-\frac{1}{2}}^n l_y - F_{i+\frac{1}{2}}^n l_y \biggr] $$ 
+$$ F_{i-\frac{1}{2}}^n = \frac{1}{2} \biggl[ F_{i-1}^n + F_i^n\biggr] - \frac{l_x}{2\Delta t} \biggl[U_i^n - U_{i-1}^n\biggr] $$
 
 #### Example 1
 
