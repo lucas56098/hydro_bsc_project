@@ -100,7 +100,7 @@ Using
 and the adapted Lax-Friedrichs (but also tried all the other ones with similar results) we get
 
 <p align="center">
-  <img src="/figures/swe_voronoi_voronoi_alg1.gif
+  <img src="/figures/swe_voronoi.gif
   " alt="swe_voronoi_voronoi_alg" width="45%">
   <img src="/figures/swe_cartesian_voronoi_algorithm.gif" alt="swe_cartesian_voronoi_algorithm" width="45%">
 </p>
