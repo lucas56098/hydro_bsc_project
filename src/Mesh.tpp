@@ -165,6 +165,9 @@ void Mesh<CellType>::generate_grid(bool cartesian, bool is_1D, int N_row, int ll
 template <typename CellType>
 void Mesh<CellType>::generate_uniform_grid2D(Point start, int n_hor, int n_vert, double distx, double disty, bool repeating) {
 
+    n_horizontal = n_hor;
+    n_vertical = n_vert;
+
     for (int b = 0; b<n_vert; b++) {
         for (int a = 0; a<n_hor; a++) {
 
@@ -526,7 +529,7 @@ void Mesh<CellType>::initialize_Q_cells(int a, int b, double value, int step) {
 
 // sets the initial condition according to given function
 template <typename CellType>
-void Mesh<CellType>::initalize_Q_circle(Point p0, double r) {
+void Mesh<CellType>::initalize_Q_circle(Point p0, double r, double Qval) {
 
     // make sure that the cell type is correct
     if constexpr (is_same_v<CellType, Q_Cell> == false) {
@@ -535,10 +538,92 @@ void Mesh<CellType>::initalize_Q_circle(Point p0, double r) {
     }
 
     for (int i = 0; i < cells.size(); i++) {
-        cells[i].Q = advecting_circle(cells[i].seed, 0, Point(0, 0), p0, r);
+        cells[i].Q = Qval*advecting_circle(cells[i].seed, 0, Point(0, 0), p0, r);
     }
 
 }
+
+// Function to initalize a gaussian for shallow water equations
+template <typename CellType>
+void Mesh<CellType>::initalize_SWE_gaussian(Point p0, double A, double sigma) {
+
+    for (int i = 0; i < cells.size(); i++) {
+
+        double dx = cells[i].seed.x - p0.x;
+        double dy = cells[i].seed.y - p0.y;
+        //double dy = 0;
+        cells[i].h += A * exp(- (dx * dx + dy * dy) / (2 * sigma * sigma));
+
+        cells[i].u = 0;
+        cells[i].v = 0;
+
+    }
+
+}
+
+
+// Function to create an internal boundary
+template <typename CellType>
+void Mesh<CellType>::inialize_boundary_struct(Point p0, double l_x, double l_y) {
+
+    // loop through all cells
+    for (int i = 0; i < cells.size(); i++) {
+
+        // if cell[i] is inside square make it boundary cell
+        if (cells[i].seed.x < p0.x + l_x && cells[i].seed.x > p0.x && cells[i].seed.y < p0.y + l_y && cells[i].seed.y > p0.y) { 
+            make_cell_boundary_cell(i);
+        }
+    }
+}
+
+
+// makes cell[i] boundary cell
+template <typename CellType>
+void Mesh<CellType>::make_cell_boundary_cell(int i) {
+
+    // make sure that the cell type is correct
+    if constexpr (is_same_v<CellType, Q_Cell> == true) {
+        // boundary cells have Q = -INFINITY such that they will not be plotted in visualization
+        cells[i].Q = -INFINITY;
+    }
+
+    // make sure that the cell type is correct
+    if constexpr (is_same_v<CellType, SWE_Cell> == true) {
+        // boundary cells have Q = -INFINITY such that they will not be plotted in visualization
+        cells[i].h = -INFINITY;
+        cells[i].u = 0;
+        cells[i].v = 0;
+    }
+
+    // loop through edges of that boundary cell
+    for (int j = 0; j < cells[i].edges.size(); j++) {
+
+        // if already boundary there is nothing to change
+        if (cells[i].edges[j].is_boundary == false) {
+
+            // set face from internal side to boundary
+            cells[i].edges[j].is_boundary = true;
+
+            // go through all faces of the edges[j].neighbour were looking at
+            for (int k = 0; k < cells[i].edges[j].neighbour->edges.size(); k++) {
+
+                // find face with neighbour == our cell, then set its boundary also true
+                if (cells[i].edges[j].neighbour->edges[k].neighbour == &cells[i]) {
+
+                    // set that boundary true
+                    cells[i].edges[j].neighbour->edges[k].is_boundary = true;
+
+                }
+
+            }
+
+        }
+
+
+    }
+
+}
+
 
 // SAVE DATA TO FILE ------------------------------------------------------------------------------
 // saves mesh into csv file readable for python script

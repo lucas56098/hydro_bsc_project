@@ -62,7 +62,8 @@ def process_file(file_name, sort_option = 'none', print_option = False):
 def plot_2D(polygons, Q, cmap = 'viridis', vmin = 0, vmax = 1, edgecolor = 'face', cbar_label = 'Q_value', title = '', save = True, save_name = 'image2D', figsize = (12, 10), logscale = False, logmin = 1e-18):
 
     if logscale:
-        Q = np.log10(np.maximum(Q, np.zeros(len(Q)) + logmin))
+        #Q = np.log10(np.maximum(Q, np.zeros(len(Q)) + logmin))
+        Q = np.where(np.isinf(Q), -np.inf, np.log10(np.maximum(Q, np.zeros(len(Q)) + logmin)))
 
     fig, ax = plt.subplots(figsize = figsize)
     norm = mcolors.Normalize(vmin=vmin, vmax=vmax)
@@ -107,7 +108,8 @@ def animation2D(file_name, frames, fps=30, animation_name='animation2D', cbar_la
         seeds, polygons, Q = process_file(file_path)
         Q = Q[:, quantity_index]
         if logscale:
-            Q = np.log10(np.maximum(Q, np.zeros(len(Q)) + logmin))
+            #Q = np.log10(np.maximum(Q, np.zeros(len(Q)) + logmin))
+            Q = np.where(np.isinf(Q), -np.inf, np.log10(np.maximum(Q, np.zeros(len(Q)) + logmin)))
         collection.set_paths(polygons)
         collection.set_array(Q)
 
@@ -171,7 +173,7 @@ def analytic_Q(x, t, velocity, a, b):
 
 
 # function to make 1D animation of the mesh
-def animation1D(filerange, filenames, labels, sort_option, fps = 30, title = '', x_label = '', y_label = 'Q-Value', xlim = (0,1), ylim = (0, 1), save_name = 'animation1D', bin_size = 0, analytic_solution = False, velocity = 0.5, a = 0, b = 0.1, quantity_index = 1):
+def animation1D(filerange, filenames, labels, sort_option, quantity_index, fps = 30, title = '', x_label = '', y_label = 'Q-Value', xlim = (0,1), ylim = (0, 1), save_name = 'animation1D', bin_size = 0, analytic_solution = False, velocity = 0.5, a = 0, b = 0.1):
     
     def update1D(frame):
 

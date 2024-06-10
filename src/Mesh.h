@@ -21,13 +21,17 @@ public:
     vector<CellType> cells;
     double total_Q_initial;
     bool is_cartesian = false;
+    double n_horizontal;
+    double n_vertical;
     
     // generate mesh
     void generate_grid(bool cartesian, bool is_1D, int N_row, int lloyd_iterations = 0, bool repeating = false);
     
     // initial conditions
     void initialize_Q_cells(int a, int b, double value = 1, int step = 1);
-    void initalize_Q_circle(Point p0 = Point(0.5, 0.5), double r = 0.1);
+    void initalize_Q_circle(Point p0 = Point(0.5, 0.5), double r = 0.1, double Qval = 1);
+    void inialize_boundary_struct(Point p0, double l_x, double l_y);
+    void initalize_SWE_gaussian(Point p0 = Point(0.5, 0.5), double A = 1, double sigma = 0.5);
 
     // save mesh
     void save_mesh(int file_nr, string name, double dt);
@@ -38,9 +42,10 @@ public:
 
 private:
 
-    // helper functions for vmesh generation out of Voronoi_Mesh_Project (vmp)
+    // helper functions
     vector<Point> generate_seed_points(int N, bool fixed_random_seed, double min, int max, int rd_seed, bool sort_pts, int sort_precision, int sort_scheme);
     int get_sort_index(Point pt, int sort_grid_size, int sort_scheme);
+    void make_cell_boundary_cell(int i);
 
     // different grid generations
     void generate_uniform_grid2D(Point start, int n_hor, int n_vert, double distx, double disty, bool repeating = false);
