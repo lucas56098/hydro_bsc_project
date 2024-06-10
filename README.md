@@ -18,27 +18,27 @@ Option to turn cells into boundary cells, int theory one could generate grids wi
 
 Using
 
-$$ \vec{U} = \begin{pmatrix} h \\ hu \\ hv \end{pmatrix}, \;\;\; \vec{F} = \begin{pmatrix} hu \\ hu^2 + gh^2/2 \\ hvu \end{pmatrix}, \;\;\; \vec{G} = \begin{pmatrix} hv \\ hvu \\ hv^2 + gh^2/2 \end{pmatrix} $$
+$$\vec{U} = \begin{pmatrix} h \\ hu \\ hv \end{pmatrix}, \vec{F} = \begin{pmatrix} hu \\ hu^2 + gh^2/2 \\ hvu \end{pmatrix}, \vec{G} = \begin{pmatrix} hv \\ hvu \\ hv^2 + gh^2/2 \end{pmatrix}$$
 
 the equation reads
 
-$$ \frac{\partial \vec{U}}{\partial t} + \frac{\partial \vec{F}}{\partial x} + \frac{\partial \vec{G}}{\partial y} = 0$$
+$$\frac{\partial \vec{U}}{\partial t} + \frac{\partial \vec{F}}{\partial x} + \frac{\partial \vec{G}}{\partial y} = 0$$
 
 Integrating over a Cell i leads to
 
-$$ \frac{\partial}{\partial t} \int_{C_i}{dA \;\vec{U}} + \int_{C_i}{dA \; \vec{\nabla}(\vec{F}, \vec{G})} = 0$$
+$$\frac{\partial}{\partial t} \int_{C_i}{dA \;\vec{U}} + \int_{C_i}{dA \; \vec{\nabla}(\vec{F}, \vec{G})} = 0$$
 
 and applying Gauss's theorem we get
 
-$$ A \frac{\partial <\vec{U_i}>}{\partial t} + \int_{\partial C_i}{ds \; (\vec{F}, \vec{G})\cdot \hat{n}} $$
+$$A \frac{\partial <\vec{U_i}>}{\partial t} + \int_{\partial C_i}{ds \; (\vec{F}, \vec{G})\cdot \hat{n}}$$
 
 For Voronoi we thus get
 
-$$ \vec{U}_i^{n+1} = \vec{U}_i^{n} - \frac{\Delta t}{A} \sum_{j \in \partial C_i}{l_{i, j} \cdot (\vec{F}_{i,j} n_x + \vec{G}_{i,j}n_y)} $$
+$$\vec{U}_i^{n+1} = \vec{U}_i^{n} - \frac{\Delta t}{A} \sum_{j \in \partial C_i}{l_{i, j} \cdot (\vec{F}_{i,j} n_x + \vec{G}_{i,j}n_y)}$$
 
 which in the cartesian case simplifies to 
 
-$$ \vec{U}_i^{n+1} = \vec{U}_i^{n} + \frac{\Delta t}{\Delta x}(\vec{F}_{i-\frac{1}{2}} - \vec{F}_{i+\frac{1}{2}}) + \frac{\Delta t}{\Delta y}(\vec{G}_{i-\frac{1}{2}} - \vec{G}_{i+\frac{1}{2}}) $$
+$$\vec{U}_i^{n+1} = \vec{U}_i^{n} + \frac{\Delta t}{\Delta x}(\vec{F}_{i-\frac{1}{2}} - \vec{F}_{i+\frac{1}{2}}) + \frac{\Delta t}{\Delta y}(\vec{G}_{i-\frac{1}{2}} - \vec{G}_{i+\frac{1}{2}})$$
 
 ### Flux approximations
 But how do we approximate the fluxes?
@@ -49,7 +49,7 @@ Upwind? Can this even work since for example if $(\vec{F}_{i-\frac{1}{2}})_0 = -
 </p>
 Well that doesn't seem to work. What about Lax-Friedrichs as used before in Advection?
 
-$$ \vec{F}_{i-\frac{1}{2}} = \frac{1}{2} [\vec{F}_{i-1} + \vec{F}_{i}] - \frac{\Delta x}{2\Delta t} (\vec{U}_i - \vec{U}_{i-1}) $$
+$$\vec{F}_{i-\frac{1}{2}} = \frac{1}{2} [\vec{F}_{i-1} + \vec{F}_{i}] - \frac{\Delta x}{2\Delta t} (\vec{U}_i - \vec{U}_{i-1})$$
 
 <p align="center">
   <img src="/figures/swe_pure_lax_friedrich_aua.gif" alt="swe_pure_lax_friedrich_aua" width="45%">
@@ -63,7 +63,7 @@ I mean it looks cool but out of one line there appear many and it needs addition
 -> This is just a desperate try of me. Nothing foundated.
 Try 
 
-$$ \vec{F}_{i-\frac{1}{2}} = \frac{1}{2} [\vec{F}_{i-1} + \vec{F}_{i}] - \frac{1}{100} \cdot \frac{\Delta x}{2\Delta t} (\vec{U}_i - \vec{U}_{i-1}) $$
+$$\vec{F}_{i-\frac{1}{2}} = \frac{1}{2} [\vec{F}_{i-1} + \vec{F}_{i}] - \frac{1}{100} \cdot \frac{\Delta x}{2\Delta t} (\vec{U}_i - \vec{U}_{i-1})$$
 
 Then we get
 <p align="center">
@@ -78,7 +78,7 @@ which at least looks somewhat like expected. I think we should update to some ki
 
 Using
 
-$$ \vec{U}_i^{n+1} = \vec{U}_i^{n} - \frac{\Delta t}{A} \sum_{j \in \partial C_i}{l_{i, j} \cdot (\vec{F}_{i,j} n_x + \vec{G}_{i,j}n_y)} $$
+$$\vec{U}_i^{n+1} = \vec{U}_i^{n} - \frac{\Delta t}{A} \sum_{j \in \partial C_i}{l_{i, j} \cdot (\vec{F}_{i,j} n_x + \vec{G}_{i,j}n_y)}$$
 
 and the adapted Lax-Friedrichs (but also tried all the other ones with similar results) we get
 
@@ -93,9 +93,9 @@ while on the right we applied the general voronoi formula to the cartesian grid 
 ### Boundary conditions for Shallow Water equations (cartesian)
 1. Repeating (intrinsic in mesh structure)
 2. Sink
-$$ \begin{pmatrix} h^* \\ h^*u^* \\ h^*v^* \end{pmatrix} = \begin{pmatrix} h \\ hu \\ hv \end{pmatrix} $$
+$$\begin{pmatrix} h^* \\ h^*u^* \\ h^*v^* \end{pmatrix} = \begin{pmatrix} h \\ hu \\ hv \end{pmatrix}$$
 3. Reflecting
-$$ \begin{pmatrix} h^* \\ h^*u^* \\ h^*v^* \end{pmatrix} = \begin{pmatrix} h \\ -hu \\ -hv \end{pmatrix} $$
+$$\begin{pmatrix} h^* \\ h^*u^* \\ h^*v^* \end{pmatrix} = \begin{pmatrix} h \\ -hu \\ -hv \end{pmatrix}$$
 
 
 <p align="center">
