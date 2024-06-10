@@ -3,243 +3,124 @@ project to eventually do hydrodynamics on different meshes, with maybe different
 
 ## Changes in last update
 ---
-- General Code Cleanup
-  - new folder structure
-  - summed up advection solvers into one function
-  - added support for negative $v_x$, $v_y$ in the cartesian advection
-  - made visualization.ipynb more function oriented
-
-- Initial conditions and L1-error estimates now defined using functions (analytic solutions)
+- visualization.ipynb -> vis_tk.py package
 
 ---
-### logQ plot to verify Q_diff plot
-
+### Custom boundaries
+Option to turn cells into boundary cells, int theory one could generate grids with arbitrary shapes here
 <p align="center">
-  <img src="/figures/0hot_animation2D.gif" alt="0hot_animation2D" width="45%">
-  <img src="/figures/0hot_loganimation2D.gif" alt="0hot_loganimation2D" width="45%">
-</p>
-<p align="center">
-  <img src="/figures/0Q_conservation_with_analytic_line.png" alt="0hot_animation2D" width="60%">
-</p>
-
-
-
----
-### L1 error for 1D stepfunc advection on Vmesh
-
-<p align="center">
-  <img src="/figures/0L1_over_time_1D_adv.png" alt="0L1_over_time_1D_adv" width="45%">
-  <img src="/figures/0L1_error_over_N_1D_adv.png" alt="delta_Q_total_float_precision" width="45%">
+  <img src="/figures/2boundarystuff_diffustion.gif" alt="2boundarystuff_diffustion" width="45%">
+  <img src="/figures/2boundarystuff_advection.gif" alt="2boundarystuff_advection" width="45%">
 </p>
 
 ---
-### L1 error for 2D circle advection on Vmesh
+### Shallow Water Equations 2D
+
+Using
+
+$$ \vec{U} = \begin{pmatrix} h \\ hu \\ hv \end{pmatrix}, \;\;\; \vec{F} = \begin{pmatrix} hu \\ hu^2 + gh^2/2 \\ hvu \end{pmatrix}, \;\;\; \vec{G} = \begin{pmatrix} hv \\ hvu \\ hv^2 + gh^2/2 \end{pmatrix} $$
+
+the equation reads
+
+$$ \frac{\partial \vec{U}}{\partial t} + \frac{\partial \vec{F}}{\partial x} + \frac{\partial \vec{G}}{\partial y} = 0$$
+
+Integrating over a Cell i leads to
+
+$$ \frac{\partial}{\partial t} \int_{C_i}{dA \;\vec{U}} + \int_{C_i}{dA \; \vec{\nabla}(\vec{F}, \vec{G})} = 0$$
+
+and applying Gauss's theorem we get
+
+$$ A \frac{\partial <\vec{U_i}>}{\partial t} + \int_{\partial C_i}{ds \; (\vec{F}, \vec{G})\cdot \hat{n}} $$
+
+For Voronoi we thus get
+
+$$ \vec{U}_i^{n+1} = \vec{U}_i^{n} - \frac{\Delta t}{A} \sum_{j \in \partial C_i}{l_{i, j} \cdot (\vec{F}_{i,j} n_x + \vec{G}_{i,j}n_y)} $$
+
+which in the cartesian case simplifies to 
+
+$$ \vec{U}_i^{n+1} = \vec{U}_i^{n} + \frac{\Delta t}{\Delta x}(\vec{F}_{i-\frac{1}{2}} - \vec{F}_{i+\frac{1}{2}}) + \frac{\Delta t}{\Delta y}(\vec{G}_{i-\frac{1}{2}} - \vec{G}_{i+\frac{1}{2}}) $$
+
+### Flux approximations
+But how do we approximate the fluxes?
+Upwind? Can this even work since for example if $(\vec{F}_{i-\frac{1}{2}})_0 = - (\vec{F}_{i-\frac{1}{2}})_1$ how do i even define an upwind side. Componentwise?
 
 <p align="center">
-  <img src="/figures/0L1_over_time2D_Vmesh_Circle.png" alt="0L1_over_time2D_Vmesh_Circle" width="45%">
-  <img src="/figures/0L1_error_over_N_2D_Vmesh_Circle.png" alt="delta_Q_total_float_precision" width="45%">
+  <img src="/figures/swe_upwind_scheme_whatever.gif" alt="swe_upwind_scheme_whatever" width="45%">
+</p>
+Well that doesn't seem to work. What about Lax-Friedrichs as used before in Advection?
+
+$$ \vec{F}_{i-\frac{1}{2}} = \frac{1}{2} [\vec{F}_{i-1} + \vec{F}_{i}] - \frac{\Delta x}{2\Delta t} (\vec{U}_i - \vec{U}_{i-1}) $$
+
+<p align="center">
+  <img src="/figures/swe_pure_lax_friedrich_aua.gif" alt="swe_pure_lax_friedrich_aua" width="45%">
+</p>
+Hmm. What if we just try FTCS (Finite Time Centered Space)
+
+<p align="center">
+  <img src="/figures/swe_first_try_ftcs.gif" alt="swe_first_try_ftcs" width="45%">
+</p>
+I mean it looks cool but out of one line there appear many and it needs additional vastly high resolution. Maybe some diffusion could solve this problem though less than Lax-Friedrichs. 
+-> This is just a desperate try of me. Nothing foundated.
+Try 
+
+$$ \vec{F}_{i-\frac{1}{2}} = \frac{1}{2} [\vec{F}_{i-1} + \vec{F}_{i}] - \frac{1}{100} \cdot \frac{\Delta x}{2\Delta t} (\vec{U}_i - \vec{U}_{i-1}) $$
+
+Then we get
+<p align="center">
+  <img src="/figures/swe_first_try_lax_friedrich_less_diffusion.gif" alt="swe_first_try_lax_friedrich_less_diffusion" width="33%">
+  <img src="/figures/swe_first_try_lax_friedrich_less_diffusion_u.gif" alt="swe_first_try_lax_friedrich_less_diffusion_u" width="33%">
+  <img src="/figures/swe_first_try_lax_friedrich_less_diffusion_v.gif" alt="swe_first_try_lax_friedrich_less_diffusion_v" width="33%">
+</p>
+
+which at least looks somewhat like expected. I think we should update to some kind of Riemann solver as soon as possible or any other more suited Flux approximations for SWE e.g. like Roe/HLL. For now it seems to work by pure coincidence. I am quite sure the difficulties lie in the Flux approximations since i am quite confident about the initial update formulas for the FV scheme.
+
+### Voronoi
+
+Using
+
+$$ \vec{U}_i^{n+1} = \vec{U}_i^{n} - \frac{\Delta t}{A} \sum_{j \in \partial C_i}{l_{i, j} \cdot (\vec{F}_{i,j} n_x + \vec{G}_{i,j}n_y)} $$
+
+and the adapted Lax-Friedrichs (but also tried all the other ones with similar results) we get
+
+<p align="center">
+  <img src="/figures/swe_voronoi_voronoi_alg.gif
+  " alt="swe_voronoi_voronoi_alg" width="45%">
+  <img src="/figures/swe_cartesian_voronoi_algorithm.gif" alt="swe_cartesian_voronoi_algorithm" width="45%">
+</p>
+while on the right we applied the general voronoi formula to the cartesian grid structure leading to the limit discussed before. To be honest i have no idea why the voronoi version doesn't work. I supect again the flux approximations here, since i am quite sure that the FV formula is right. But again a big mistery here.
+
+---
+### Boundary conditions for Shallow Water equations (cartesian)
+1. Repeating (intrinsic in mesh structure)
+2. Sink
+$$ \begin{pmatrix} h^* \\ h^*u^* \\ h^*v^* \end{pmatrix} = \begin{pmatrix} h \\ hu \\ hv \end{pmatrix} $$
+3. Reflecting
+$$ \begin{pmatrix} h^* \\ h^*u^* \\ h^*v^* \end{pmatrix} = \begin{pmatrix} h \\ -hu \\ -hv \end{pmatrix} $$
+
+
+<p align="center">
+  <img src="/figures/swe_repeating_boundary_conditions.gif" alt="swe_repeating_boundary_conditions" width="45%">
+  <img src="/figures/swe_sink_boundary.gif" alt="swe_sink_boundary" width="45%">
+</p>
+<p align="center">
+  <img src="/figures/swe_boundary_hot.gif" alt="swe_boundary_hot" width="65%">
+</p>
+
+--- 
+### Other examples
+Box initial condition
+<p align="center">
+  <img src="/figures/hot_square_swe.gif" alt="hot_square_swe" width="65%">
+</p>
+Initial Flowing Box with no initial height
+<p align="center">
+  <img src="/figures/swe_flow_h.gif" alt="swe_flow_h" width="45%">
+  <img src="/figures/swe_flow_u.gif" alt="swe_flow_u" width="45%">
 </p>
 
 ---
-### Angle dependence of L1 error on Voronoi vs. on Cartesian
-<p align="center">
-  <img src="/figures/0animation_vmesh_circle_upright.gif" alt="0animation_vmesh_circle_upright" width="45%">
-  <img src="/figures/0animation_vmesh_circle_right.gif" alt="0animation_vmesh_circle_right" width="45%">
-</p>
+still to do:
 
-<p align="center">
-  <img src="/figures/0animation_cmesh_circle_upright.gif" alt="0animation_cmesh_circle_upright" width="45%">
-  <img src="/figures/0animation_cmesh_circle_right.gif" alt="0animation_cmesh_circle_right" width="45%">
-</p>
-<p align="center">
-  <img src="/figures/0L1_error_over_time_up_right_comp_vmesh.png" alt="0L1_error_over_time_up_right_comp_vmesh" width="45%">
-  <img src="/figures/0L1_error_over_time_up_right_comp_cmesh.png" alt="0L1_error_over_time_up_right_comp_cmesh" width="45%">
-</p>
-Higher angle dependence for Cartesian Mesh, error 45deg approx equal, for 0deg cmesh has lower error than vmesh
-
----
-### Lloyd's Algorithm
-
-<p align="center">
-  <img src="/figures/0lloyds_algorithm.gif" alt="0animation_vmesh_circle_upright" width="60%">
-</p>
-
-```cpp
-        // calculate original mesh
-        VoronoiMesh initial_vmesh(pts);
-        initial_vmesh.do_point_insertion();
-        
-        // do multiple iterations of lloyds algorithm
-        for (int i = 0; i<lloyd_iterations; i++) {
-
-            // calculate centroids
-            vector<Point> centroids;
-            centroids.reserve(initial_vmesh.vcells.size());
-            for (int i = 0; i<initial_vmesh.vcells.size(); i++) {
-                centroids.push_back(initial_vmesh.vcells[i].get_centroid());
-            }
-
-            // replace original mesh seeds with centroids and calculate mesh again
-            initial_vmesh = VoronoiMesh(centroids);
-            initial_vmesh.do_point_insertion();
-
-        }
-```
-
-```cpp
-Point VoronoiCell::get_centroid() {
-
-    double A = get_area();
-
-    double sum_x = 0;
-    double sum_y = 0;
-
-    for (int i = 0; i<verticies.size(); i++) {
-        sum_x += (verticies[i].x + verticies[(i+1)%verticies.size()].x)*(verticies[i].x * verticies[(i+1)%verticies.size()].y - verticies[(i+1)%verticies.size()].x * verticies[i].y);
-        sum_y += (verticies[i].y + verticies[(i+1)%verticies.size()].y)*(verticies[i].x * verticies[(i+1)%verticies.size()].y - verticies[(i+1)%verticies.size()].x * verticies[i].y);
-    }
-
-    double C_x = -sum_x/(6*A);
-    double C_y = -sum_y/(6*A);
-
-    return Point(C_x, C_y);
-}
-```
-
-<p align="center">
-  <img src="/figures/0L1_error_over_time_up_right_comp_vmesh.png" alt="0L1_error_over_time_up_right_comp_vmesh" width="45%">
-  <img src="/figures/0L1_error_over_time_lloyd.png" alt="0L1_error_over_time_up_right_comp_cmesh" width="45%">
-</p>
-
----
-### Repeating Boundary conditions
-
-#### Cartesian
-
-<p align="center">
-  <img src="/figures/0cartesian_repeating_boundary.gif" alt="0cartesian_repeating_boundary" width="45%">
-  <img src="/figures/0delta_Q_total_cartesian_repeating_boundary.png" alt="0delta_Q_total_repeating_boundary" width="45%">
-</p>
-
-```cpp
-for (int j = 0; j<cells[i].edges.size(); j++) {
-            if (cells[i].edges[j].is_boundary == false) {
-                if (j == 0) {
-                    cells[i].edges[j].neighbour = &cells[i - (i%n_hor) + ((i+n_hor - 1)%n_hor)];
-                } else if (j == 1) {
-                    cells[i].edges[j].neighbour = &cells[((((i - (i%n_hor))/n_hor)+1)%n_vert)*n_hor + (i%n_hor)];
-                } else if (j == 2) {
-                    cells[i].edges[j].neighbour = &cells[i - (i%n_hor) + ((i + 1)%n_hor)];
-                } else if (j == 3) {
-                    cells[i].edges[j].neighbour = &cells[((((i - (i%n_hor))/n_hor)+n_vert - 1)%n_vert)*n_hor + (i%n_hor)];
-                }
-                
-            }
-        }
-```
-
-#### Voronoi
-<p align="center">
-  <img src="/figures/0voronoi_repeating_boundary_low_res.gif" alt="0voronoi_repeating_boundary_low_res" width="45%">
-  <img src="/figures/0voronoi_repeating_boundary_high_res.gif" alt="0voronoi_repeating_boundary_high_res" width="45%">
-</p>
-<p align="center">
-  <img src="/figures/0delta_Q_total_vmesh_repeating_boundary.png" alt="0delta_Q_total_vmesh_repeating_boundary" width="45%">
-</p>
-
-```cpp
-// preprocessing for repeating boundary conditions
-    vector<Point> points_plus_ghost;
-    int initial_pts_size = pts.size();
-    if (repeating) {
-        points_plus_ghost.reserve(pts.size() * 9);
-
-        // put points into (middle/middle) block by shrinking them by a factor of 3
-        for (int i = 0; i<pts.size(); i++) {
-            points_plus_ghost.emplace_back((pts[i].x/3.0) + 1.0/3.0, (pts[i].y/3.0) + 1.0/3.0);
-        }
-
-        // add the same shrinked points again but shifted in all other 8 third blocks (up/middle/down, left/middle/right)
-        vector<double> pos_X = {0., 1., 2., 0., 2., 0., 1., 2.};
-        vector<double> pos_Y = {0., 0., 0., 1., 1., 2., 2., 2.};
-        for (int i = 0; i<8; i++) {
-            for (int j = 0; j<pts.size(); j++) {
-                points_plus_ghost.emplace_back((pts[j].x/3.0) + pos_X[i] * 1.0/3.0, (pts[j].y/3.0) + pos_Y[i] * 1.0/3.0);
-            }
-        }
-        
-        // replace pts with pts + additional ghost cells (eg 8 times the pts all around)
-        pts = points_plus_ghost;
-    }
-
-    // generate vmesh
-    VoronoiMesh vmesh(pts);
-    vmesh.do_point_insertion();
-
-    // loop through all cells (of initial pts vector) to set everything but neighbour relations
-    for (int i = 0; i<initial_pts_size; i++) {
-      //...
-    }
-```
-```cpp
-neigbour_index = (vmesh.vcells[i].edges[j].index2)%initial_pts_size;
-```
-plus additional rescaling of quantities after all that
-
--  Question: What about L1 error calculation with repeated boundary conditions. Is this something we really need? Idk of a really simple way to do this yet
-
-
-
----
-### other
-just another example of using loyd's algorithm + repeating boundary conditions
-<p align="center">
-  <img src="/figures/0adv_vmesh_rep_bound_grid_no_loyd.gif" alt="0adv_vmesh_rep_bound_grid_no_loyd" width="45%">
-  <img src="/figures/0adv_vmesh_rep_bound_grid_loyd.gif" alt="0adv_vmesh_rep_bound_grid_loyd" width="45%">
-</p>
-
----
-### Shallow Water Equations
-
-conservative form:
-$${\frac {\partial (\rho h )}{\partial t}}+{\frac {\partial (\rho h u)}{\partial x}}+{\frac {\partial (\rho h v)}{\partial y}}=0 $$
-$${\frac {\partial (\rho h u)}{\partial t}}+{\frac {\partial }{\partial x}}\left(\rho h u^{2}+{\frac {1}{2}}\rho gh ^{2}\right)+{\frac {\partial (\rho h uv)}{\partial y}}=0$$ 
-$${\frac {\partial (\rho h v)}{\partial t}}+{\frac {\partial }{\partial y}}\left(\rho h v^{2}+{\frac {1}{2}}\rho gh ^{2}\right)+{\frac {\partial (\rho h uv)}{\partial x}}=0 $$
-
-with $\rho =$ density, h = fluid column height, (u, v) =  velocity averaged over column, g = gravitational acceleation. Assumptions: horizontal bed, neglible coriolis, friction, viscosity + wavelength >> water depth.
-
-### 1D cartesian
-
-$ v := 0,  \partial_y \to 0 $
-
-$$ {\frac {\partial (\rho h )}{\partial t}}+{\frac {\partial (\rho h u)}{\partial x}}=0 $$
-$$ {\frac {\partial (\rho h u)}{\partial t}}+{\frac {\partial }{\partial x}}\left(\rho h u^{2}+{\frac {1}{2}}\rho gh ^{2}\right)=0 $$ 
-
-Or written in an alternative way using
-$$ U = \begin{bmatrix} h \\ hu\end{bmatrix},\;\; F = \begin{bmatrix} hu \\ hu^2 + \frac{1}{2}gh^2\end{bmatrix} $$
-$$ \frac{\partial U}{\partial t} + \frac{\partial F}{\partial x} = 0 $$
-FV Update Scheme using Lax-Friedrichs Flux. Idk how upwind should work here?
-$$ U_i^{n+1} = U_i^n - \frac{\Delta t}{A} \biggl[F_{i-\frac{1}{2}}^n l_y - F_{i+\frac{1}{2}}^n l_y \biggr] $$ 
-$$ F_{i-\frac{1}{2}}^n = \frac{1}{2} \biggl[ F_{i-1}^n + F_i^n\biggr] - \frac{l_x}{2\Delta t} \biggl[U_i^n - U_{i-1}^n\biggr] $$
-
-#### Example 1
-
-<p align="center">
-  <img src="/figures/1_left_swe_2D.gif" alt="1left_swe_2D" width="45%">
-  <img src="/figures/1_left_swe_2D_vel.gif" alt="1_left_swe_2D_vel" width="45%">
-</p>
-<p align="center">
-  <img src="/figures/1_left_swe_1D.gif" alt="1_left_swe_1D" width="45%">
-  <img src="/figures/1_left_swe_1D_vel.gif" alt="0adv_vmesh_rep_bound_grid_loyd" width="45%">
-</p>
-
-#### Example 2
-
-<p align="center">
-  <img src="/figures/1_mid_swe_2D.gif" alt="1_mid_swe_2D" width="45%">
-  <img src="/figures/1_mid_swe_2D_vel.gif" alt="1_mid_swe_2D_vel" width="45%">
-</p>
-<p align="center">
-  <img src="/figures/1_mid_swe_1D.gif" alt="0adv_vmesh_rep_bound_grid_no_loyd" width="45%">
-  <img src="/figures/1_mid_swe_1D_vel.gif" alt="1_mid_swe_1D_vel" width="45%">
-</p>
+- Generalizing Boundary conditions. How?
+- Find analytical solutions
+- Get 2D Voronoi Mesh Version to work. How? Riemann Solver?
