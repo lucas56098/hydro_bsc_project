@@ -17,28 +17,39 @@ Option to turn cells into boundary cells, int theory one could generate grids wi
 ### Shallow Water Equations 2D
 
 Using
-
-$$\vec{U} = \begin{pmatrix} h \\ hu \\ hv \end{pmatrix}, \vec{F} = \begin{pmatrix} hu \\ hu^2 + gh^2/2 \\ hvu \end{pmatrix}, \vec{G} = \begin{pmatrix} hv \\ hvu \\ hv^2 + gh^2/2 \end{pmatrix}$$
+<p align="center">
+  <img src="/figures/0.png" alt="0" width="65%">
+</p>
 
 the equation reads
 
-$$\frac{\partial \vec{U}}{\partial t} + \frac{\partial \vec{F}}{\partial x} + \frac{\partial \vec{G}}{\partial y} = 0$$
+<p align="center">
+  <img src="/figures/1.png" alt="1" width="25%">
+</p>
 
 Integrating over a Cell i leads to
 
-$$\frac{\partial}{\partial t} \int_{C_i}{dA \;\vec{U}} + \int_{C_i}{dA \; \vec{\nabla}(\vec{F}, \vec{G})} = 0$$
+<p align="center">
+  <img src="/figures/2.png" alt="2" width="40%">
+</p>
 
 and applying Gauss's theorem we get
 
-$$A \frac{\partial <\vec{U_i}>}{\partial t} + \int_{\partial C_i}{ds \; (\vec{F}, \vec{G})\cdot \hat{n}}$$
+<p align="center">
+  <img src="/figures/3.png" alt="3" width="40%">
+</p>
 
 For Voronoi we thus get
 
-$$\vec{U}_i^{n+1} = \vec{U}_i^{n} - \frac{\Delta t}{A} \sum_{j \in \partial C_i}{l_{i, j} \cdot (\vec{F}_{i,j} n_x + \vec{G}_{i,j}n_y)}$$
+<p align="center">
+  <img src="/figures/4.png" alt="4" width="50%">
+</p>
 
 which in the cartesian case simplifies to 
 
-$$\vec{U}_i^{n+1} = \vec{U}_i^{n} + \frac{\Delta t}{\Delta x}(\vec{F}_{i-\frac{1}{2}} - \vec{F}_{i+\frac{1}{2}}) + \frac{\Delta t}{\Delta y}(\vec{G}_{i-\frac{1}{2}} - \vec{G}_{i+\frac{1}{2}})$$
+<p align="center">
+  <img src="/figures/5.png" alt="5" width="60%">
+</p>
 
 ### Flux approximations
 But how do we approximate the fluxes?
@@ -49,7 +60,9 @@ Upwind? Can this even work since for example if $(\vec{F}_{i-\frac{1}{2}})_0 = -
 </p>
 Well that doesn't seem to work. What about Lax-Friedrichs as used before in Advection?
 
-$$\vec{F}_{i-\frac{1}{2}} = \frac{1}{2} [\vec{F}_{i-1} + \vec{F}_{i}] - \frac{\Delta x}{2\Delta t} (\vec{U}_i - \vec{U}_{i-1})$$
+<p align="center">
+  <img src="/figures/6.png" alt="6" width="45%">
+</p>
 
 <p align="center">
   <img src="/figures/swe_pure_lax_friedrich_aua.gif" alt="swe_pure_lax_friedrich_aua" width="45%">
@@ -63,7 +76,9 @@ I mean it looks cool but out of one line there appear many and it needs addition
 -> This is just a desperate try of me. Nothing foundated.
 Try 
 
-$$\vec{F}_{i-\frac{1}{2}} = \frac{1}{2} [\vec{F}_{i-1} + \vec{F}_{i}] - \frac{1}{100} \cdot \frac{\Delta x}{2\Delta t} (\vec{U}_i - \vec{U}_{i-1})$$
+<p align="center">
+  <img src="/figures/7.png" alt="7" width="50%">
+</p>
 
 Then we get
 <p align="center">
@@ -78,12 +93,14 @@ which at least looks somewhat like expected. I think we should update to some ki
 
 Using
 
-$$\vec{U}_i^{n+1} = \vec{U}_i^{n} - \frac{\Delta t}{A} \sum_{j \in \partial C_i}{l_{i, j} \cdot (\vec{F}_{i,j} n_x + \vec{G}_{i,j}n_y)}$$
+<p align="center">
+  <img src="/figures/8.png" alt="8" width="50%">
+</p>
 
 and the adapted Lax-Friedrichs (but also tried all the other ones with similar results) we get
 
 <p align="center">
-  <img src="/figures/swe_voronoi_voronoi_alg.gif
+  <img src="/figures/swe_voronoi_voronoi_alg1.gif
   " alt="swe_voronoi_voronoi_alg" width="45%">
   <img src="/figures/swe_cartesian_voronoi_algorithm.gif" alt="swe_cartesian_voronoi_algorithm" width="45%">
 </p>
@@ -93,9 +110,13 @@ while on the right we applied the general voronoi formula to the cartesian grid 
 ### Boundary conditions for Shallow Water equations (cartesian)
 1. Repeating (intrinsic in mesh structure)
 2. Sink
-$$\begin{pmatrix} h^* \\ h^*u^* \\ h^*v^* \end{pmatrix} = \begin{pmatrix} h \\ hu \\ hv \end{pmatrix}$$
+<p align="center">
+  <img src="/figures/9.png" alt="9" width="20%">
+</p>
 3. Reflecting
-$$\begin{pmatrix} h^* \\ h^*u^* \\ h^*v^* \end{pmatrix} = \begin{pmatrix} h \\ -hu \\ -hv \end{pmatrix}$$
+<p align="center">
+  <img src="/figures/10.png" alt="10" width="20%">
+</p>
 
 
 <p align="center">
