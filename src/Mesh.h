@@ -32,6 +32,7 @@ public:
     void initalize_Q_circle(Point p0 = Point(0.5, 0.5), double r = 0.1, double Qval = 1);
     void inialize_boundary_struct(Point p0, double l_x, double l_y);
     void initalize_SWE_gaussian(Point p0 = Point(0.5, 0.5), double A = 1, double sigma = 0.5);
+    void initalize_SWE_dam_break(double h1 = 2.0, double h2 = 1.0, double pos = 0.5);
 
     // save mesh
     void save_mesh(int file_nr, string name, double dt);

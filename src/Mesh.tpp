@@ -561,6 +561,25 @@ void Mesh<CellType>::initalize_SWE_gaussian(Point p0, double A, double sigma) {
 
 }
 
+// 
+template <typename CellType>
+void Mesh<CellType>::initalize_SWE_dam_break(double h1, double h2, double pos) {
+
+    for (int i = 0; i< cells.size(); i++) {
+        if (cells[i].seed.x <= pos) {
+            cells[i].h = h1;
+            cells[i].u = 0;
+            cells[i].v = 0;
+        } else {
+            cells[i].h = h2;
+            cells[i].u = 0;
+            cells[i].v = 0;
+        }
+    }
+    
+}
+
+
 
 // Function to create an internal boundary
 template <typename CellType>

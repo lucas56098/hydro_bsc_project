@@ -112,6 +112,7 @@ def animation2D(file_name, frames, fps=30, animation_name='animation2D', cbar_la
             Q = np.where(np.isinf(Q), -np.inf, np.log10(np.maximum(Q, np.zeros(len(Q)) + logmin)))
         collection.set_paths(polygons)
         collection.set_array(Q)
+        #collection.set_norm(mcolors.Normalize(vmin = 1 - (max(Q) - 1), vmax = max(Q)))
 
         if plot_seeds:
             scatter_plot.set_offsets(seeds)

@@ -1,5 +1,6 @@
 #include <iostream>
 #include <vector>
+#include <array>
 #include <string>
 #include <cmath>
 #include <algorithm>
@@ -32,6 +33,7 @@ Point Solver<CellType>::get_normal_vec(Point a, Point b) {
 }
 
 // SOLVERS (update the Mesh by a single step) -----------------------------------------------------
+// SOLVER: Fake Diffusion--------------------------------------------------------------------------
 // Fake Diffusion Equation as first try, requires Q_cells, Q is a absolute value not a density
 template <typename CellType>
 void Solver<CellType>::diffusion_like(double dt) {
@@ -77,6 +79,7 @@ void Solver<CellType>::diffusion_like(double dt) {
 }
 
 
+// SOLVER: Conaway's Game of Life -----------------------------------------------------------------
 // Evolution Step for Conway's Game of Life, requires conway_cell
 template <typename CellType>
 void Solver<CellType>::conway() {
@@ -303,6 +306,9 @@ void Solver<CellType>::advection_vmesh(double dt, Point v) {
 
 
 // SOLVER: Shallow Water Equations ----------------------------------------------------------------
+
+// some old stuff that does not work
+/*
 template<typename CellType>
 void Solver<CellType>::shallow_water_1D_cartesian(double dt) {
 
@@ -312,52 +318,65 @@ void Solver<CellType>::shallow_water_1D_cartesian(double dt) {
         exit(EXIT_FAILURE);
     }
 
-    // first calculate all new values and store in vectors
+    vector<vector<double>> hu_new;
+    hu_new.reserve(grid->cells.size());
 
-    vector<double> h_new;
-    vector<double> u_new;
-    h_new.reserve(grid->cells.size());
-    u_new.reserve(grid->cells.size());
+    // loop through all cells to calculate values
+    for (int i = 0; i < grid->cells.size(); i++) {
 
-    // loop through all cells to calcualte values
-    for (int i = 0; i<grid->cells.size(); i++) {
-
-        // get everything we need
-        double l_x = grid->cells[i].edges[1].length;
-        double g = 9.81;
-        double h_i_n = grid->cells[i].h;
-        double h_ip1_n = grid->cells[i].h; // will be later changed unless its a boundary
-        double h_im1_n = grid->cells[i].h; // will be later changed unless its a boundary
-        double u_i_n = grid->cells[i].u;
-        double u_ip1_n = - grid->cells[i].u;  // will be later changed unless its a boundary
-        double u_im1_n = - grid->cells[i].u;  // will be later changed unless its a boundary
+        double dx = grid->cells[i].edges[1].length;
+        double g = 1;
+        
+        vector<double> hu_i_n = {grid->cells[i].h, grid->cells[i].u};
+        vector<double> hu_i_np1 = {0.0, 0.0};
+        vector<double> hu_ip1_n = {grid->cells[i].h, -grid->cells[i].u};
+        vector<double> hu_im1_n = {grid->cells[i].h, -grid->cells[i].u};
 
         if (grid->cells[i].edges[0].is_boundary == false) {
-            h_im1_n = grid->cells[i].edges[0].neighbour->get_h();
-            u_im1_n = grid->cells[i].edges[0].neighbour->get_u();
+            hu_im1_n[0] = grid->cells[i].edges[0].neighbour->get_h();
+            hu_im1_n[1] = grid->cells[i].edges[0].neighbour->get_u();
         }
         if (grid->cells[i].edges[2].is_boundary == false) {
-            h_ip1_n = grid->cells[i].edges[2].neighbour->get_h();
-            u_ip1_n = grid->cells[i].edges[2].neighbour->get_u();
+            hu_ip1_n[0] = grid->cells[i].edges[2].neighbour->get_h();
+            hu_ip1_n[1] = grid->cells[i].edges[2].neighbour->get_u();
         }
 
-        // new values using FV with Lax Friedrichs Flux estimation
-        double h_i_np1 = h_i_n - (dt/(2*l_x)) * ( (h_ip1_n*u_ip1_n - h_im1_n*u_im1_n) + (l_x/dt)*(2*h_i_n - h_im1_n - h_ip1_n) );
-        double u_i_np1 = ((h_i_n*u_i_n)/h_i_np1) - (dt/(2*l_x*h_i_np1)) * ( (h_ip1_n*u_ip1_n*u_ip1_n + (g/2.0)*h_ip1_n*h_ip1_n) - ((h_im1_n*u_im1_n*u_im1_n + (g/2.0)*h_im1_n*h_im1_n)) + (l_x/dt)*(2*h_i_n*u_i_n - h_ip1_n*u_ip1_n - h_im1_n*u_im1_n) );
+        vector<double> f_i = {
+                                hu_i_n[0] * hu_i_n[1], 
+                                hu_i_n[0] * hu_i_n[1] * hu_i_n[1] + (g/2.0) * hu_i_n[0] * hu_i_n[0]
+                             };
 
-        h_new.push_back(h_i_np1);
-        u_new.push_back(u_i_np1);
+        vector<double> f_m1 = {
+                                hu_im1_n[0] * hu_im1_n[1], 
+                                hu_im1_n[0] * hu_im1_n[1] * hu_im1_n[1] + (g/2.0) * hu_im1_n[0] * hu_im1_n[0]
+                              };
+        vector<double> f_p1= {
+                                hu_ip1_n[0] * hu_ip1_n[1], 
+                                hu_ip1_n[0] * hu_ip1_n[1] * hu_ip1_n[1] + (g/2.0) * hu_ip1_n[0] * hu_ip1_n[0]
+                              };
+
+        vector<double> F_m = roe_solver_swe_1D(hu_i_n, hu_im1_n, f_i, f_m1, g);
+        vector<double> F_p = roe_solver_swe_1D(hu_i_n, hu_ip1_n, f_i, f_p1, g);
+        
+
+        hu_i_np1[0] = hu_i_n[0] + (dt/dx) * (F_m[0] - F_p[0]);
+        hu_i_np1[1] = (hu_i_n[0]*hu_i_n[1] + (dt/dx) * (F_m[1] - F_p[1]))/hu_i_np1[0];
+        
+        hu_new.push_back(hu_i_np1);
+
     }
-    
+
     // then apply all the changes
-    for (int i = 0; i<grid->cells.size(); i++) {
-        grid->cells[i].h = h_new[i];
-        grid->cells[i].u = u_new[i];
+    for (int i = 0; i < grid->cells.size(); i++) {
+        grid->cells[i].h = hu_new[i][0];
+        grid->cells[i].u = hu_new[i][1];
     }
+
 
 }
 
-// implementation of shallow water equation 2D cartesian using lax friedrichs flux
+// implementation of shallow water equation 2D cartesian using adapted lax friedrichs flux
+// WARNING: Solutions probably unphysical since lax friedrichs flux not applicable here
 template<typename CellType>
 void Solver<CellType>::shallow_water_2D_cartesian(double dt, int boundary_condition) {
 
@@ -474,36 +493,23 @@ void Solver<CellType>::shallow_water_2D_cartesian(double dt, int boundary_condit
         double F_m_h = 0.5 * (F_im1_h + F_i_h) - (1.0/100.0) * ((dx)/(2.0*dt)) * (h_i_n - h_im1_n); 
         double F_m_u = 0.5 * (F_im1_u + F_i_u) - (1.0/100.0) * ((dx)/(2.0*dt)) * (h_i_n * u_i_n - h_im1_n * u_im1_n);
         double F_m_v = 0.5 * (F_im1_v + F_i_v) - (1.0/100.0) * ((dx)/(2.0*dt)) * (h_i_n * v_i_n - h_im1_n * v_im1_n);
-        //double F_m_h = (0.5 * (F_im1_h + F_i_h) >= 0) ? F_im1_h : F_i_h;
-        //double F_m_u = (0.5 * (F_im1_u + F_i_u) >= 0) ? F_im1_u : F_i_u;
-        //double F_m_v = (0.5 * (F_im1_v + F_i_v) >= 0) ? F_im1_v : F_i_v;
-
 
         // F_p
         double F_p_h = 0.5 * (F_i_h + F_ip1_h) - (1.0/100.0) * ((dx)/(2.0*dt)) * (h_ip1_n - h_i_n);
         double F_p_u = 0.5 * (F_i_u + F_ip1_u) - (1.0/100.0) * ((dx)/(2.0*dt)) * (h_ip1_n * u_ip1_n - h_i_n * u_i_n);
         double F_p_v = 0.5 * (F_i_v + F_ip1_v) - (1.0/100.0) * ((dx)/(2.0*dt)) * (h_ip1_n * v_ip1_n - h_i_n * v_i_n);
-        //double F_p_h = (0.5 * (F_ip1_h + F_i_h) <= 0) ? F_ip1_h : F_i_h;
-        //double F_p_u = (0.5 * (F_ip1_u + F_i_u) <= 0) ? F_ip1_u : F_i_u;
-        //double F_p_v = (0.5 * (F_ip1_v + F_i_v) <= 0) ? F_ip1_v : F_i_v;
 
         // calculate G_m, G_p using lax friedrichs flux approximation
         // G_m
         double G_m_h = 0.5 * (G_imN_h + G_i_h) - (1.0/100.0) * ((dy)/(2.0*dt)) * (h_i_n - h_imN_n);
         double G_m_u = 0.5 * (G_imN_u + G_i_u) - (1.0/100.0) * ((dy)/(2.0*dt)) * (h_i_n * u_i_n - h_imN_n * u_imN_n);
         double G_m_v = 0.5 * (G_imN_v + G_i_v) - (1.0/100.0) * ((dy)/(2.0*dt)) * (h_i_n * v_i_n - h_imN_n * v_imN_n);
-        //double G_m_h = (0.5 * (G_imN_h + G_i_h) >= 0) ? G_imN_h : G_i_h;
-        //double G_m_u = (0.5 * (G_imN_u + G_i_u) >= 0) ? G_imN_u : G_i_u;
-        //double G_m_v = (0.5 * (G_imN_v + G_i_v) >= 0) ? G_imN_v : G_i_v;
 
 
         // G_p
         double G_p_h = 0.5 * (G_i_h + G_ipN_h) - (1.0/100.0) * ((dy)/(2.0*dt)) * (h_ipN_n - h_i_n);
         double G_p_u = 0.5 * (G_i_u + G_ipN_u) - (1.0/100.0) * ((dy)/(2.0*dt)) * (h_ipN_n * u_ipN_n - h_i_n * u_i_n);
         double G_p_v = 0.5 * (G_i_v + G_ipN_v) - (1.0/100.0) * ((dy)/(2.0*dt)) * (h_ipN_n * v_ipN_n - h_i_n * v_i_n);
-        //double G_p_h = (0.5 * (G_imN_h + G_i_h) <= 0) ? G_ipN_h : G_i_h;
-        //double G_p_u = (0.5 * (G_imN_u + G_i_u) <= 0) ? G_ipN_u : G_i_u;
-        //double G_p_v = (0.5 * (G_imN_v + G_i_v) <= 0) ? G_ipN_v : G_i_v;
 
         // calculate new state vector Q_i_np1 using fluxes
         h_i_np1 = h_i_n + ((dt)/(dx)) * (F_m_h - F_p_h) + ((dt)/(dy)) * (G_m_h - G_p_h);
@@ -525,11 +531,11 @@ void Solver<CellType>::shallow_water_2D_cartesian(double dt, int boundary_condit
     }
 
 }
+*/
 
-
-// DOESNT WORK!!! -- STILL CONSTRUCTION SITE -- implementation of shallow water equation 2D voronoi
+// implementation of shallow water equation 2D voronoi using Roe solver
 template<typename CellType>
-void Solver<CellType>::shallow_water_2D(double dt) {
+void Solver<CellType>::shallow_water_2D(double dt, int boundary_cond) {
 
     // make sure that the cell type is correct
     if constexpr (is_same_v<CellType, SWE_Cell> == false) {
@@ -537,112 +543,126 @@ void Solver<CellType>::shallow_water_2D(double dt) {
         exit(EXIT_FAILURE);
     }
 
-    vector<double> h_new;
-    vector<double> u_new;
-    vector<double> v_new;
-    h_new.reserve(grid->cells.size());
-    u_new.reserve(grid->cells.size());
-    v_new.reserve(grid->cells.size());
+    vector<array<double, 3>> Q_new;
+    Q_new.reserve(grid->cells.size());
 
     //go through each cell to calculate the new values
     for (int i = 0; i<grid->cells.size(); i++) {
 
         double A = grid->cells[i].volume;
 
-        double h_i_np1 = 0;
-        double u_i_np1 = 0;
-        double v_i_np1 = 0;
-
-        double h_i_n = grid->cells[i].h;
-        double u_i_n = grid->cells[i].u;
-        double v_i_n = grid->cells[i].v;
-
-        double total_flux_h = 0;
-        double total_flux_u = 0;
-        double total_flux_v = 0;
+        array<double, 3> huv_i_np1 = {0, 0, 0};
+        array<double, 3> huv_i_n = {grid->cells[i].h, grid->cells[i].u, grid->cells[i].v};
+        array<double, 3> total_flux = {0, 0, 0};
 
         // calculate total_flux by summing over edge fluxed * edge_length
         for (int j = 0; j < grid->cells[i].edges.size(); j++) {
             
-            // make sure that no flux through boundaries 
+            Point n = get_normal_vec(grid->cells[i].edges[j].a, grid->cells[i].edges[j].b);
+            double l_i_j = grid->cells[i].edges[j].length;
+            double g = 1;
+
+            // values needed for f and g calculations
+            // values of other cell
+            array<double, 3> huv_j_n = {huv_i_n[0], boundary_cond * huv_i_n[1],  boundary_cond * huv_i_n[2]};
             if (grid->cells[i].edges[j].is_boundary == false) {
+                huv_j_n[0] = grid->cells[i].edges[j].neighbour->get_h();
+                huv_j_n[1] = grid->cells[i].edges[j].neighbour->get_u();
+                huv_j_n[2] = grid->cells[i].edges[j].neighbour->get_v();
+            }
 
-                Point n = get_normal_vec(grid->cells[i].edges[j].a, grid->cells[i].edges[j].b);
-                double l_i_j = grid->cells[i].edges[j].length;
-                double g = 9.81;
-
-                // values needed for f and g calculations
-                // values of other cell
-                double h_j_n = grid->cells[i].edges[j].neighbour->get_h();
-                double u_j_n = grid->cells[i].edges[j].neighbour->get_u();
-                double v_j_n = grid->cells[i].edges[j].neighbour->get_v();
-
-                // f_i
-                double f_i_h = h_i_n * u_i_n;
-                double f_i_u = h_i_n * u_i_n * u_i_n + (g/2.0) * h_i_n * h_i_n;
-                double f_i_v = h_i_n * v_i_n * u_i_n;
-                
-                // f_j
-                double f_j_h = h_j_n * u_j_n;
-                double f_j_u = h_j_n * u_j_n * u_j_n + (g/2.0) * h_j_n * h_j_n;
-                double f_j_v = h_j_n * v_j_n * u_j_n;
-                
-                // g_i
-                double g_i_h = h_i_n * v_i_n;
-                double g_i_u = h_i_n * v_i_n * u_i_n;
-                double g_i_v = h_i_n * v_i_n * v_i_n + (g/2.0) * h_i_n * h_i_n;
-                
-                // g_j
-                double g_j_h = h_j_n * v_j_n;
-                double g_j_u = h_j_n * v_j_n * u_j_n;
-                double g_j_v = h_j_n * v_j_n * v_j_n + (g/2.0) * h_j_n * h_j_n;
-
-                // distance_i_j
-                Point seed_i = grid->cells[i].seed;
-                Point seed_j = grid->cells[i].edges[j].neighbour->seed;
-                double d_i_j = sqrt((seed_i.x - seed_j.x)*(seed_i.x - seed_j.x) + (seed_i.y - seed_j.y)*(seed_i.y - seed_j.y));
-
-
-                // calculate f using lax_friedrichs_scheme
-                double f_i_j_h = (0.5) * (f_i_h + f_j_h) - (d_i_j/(2.0*dt)) * (h_j_n - h_i_n);
-                double f_i_j_u = (0.5) * (f_i_u + f_j_u) - (d_i_j/(2.0*dt)) * (h_j_n * u_j_n - h_i_n * u_i_n);
-                double f_i_j_v = (0.5) * (f_i_v + f_j_v) - (d_i_j/(2.0*dt)) * (h_j_n * v_j_n - h_i_n * v_i_n);
+            // f_i
+            array<double, 3> f_i = {
+                                  huv_i_n[0] * huv_i_n[1],
+                                  huv_i_n[0] * huv_i_n[1] * huv_i_n[1] + (g/2.0) * huv_i_n[0] * huv_i_n[0],
+                                  huv_i_n[0] * huv_i_n[2] * huv_i_n[1]
+                                 };
             
-                // calculate g using lax_friedrichs_scheme
-                double g_i_j_h = (0.5) * (g_i_h + g_j_h) - (d_i_j/(2.0*dt)) * (h_j_n - h_i_n);
-                double g_i_j_u = (0.5) * (g_i_u + g_j_u) - (d_i_j/(2.0*dt)) * (h_j_n * u_j_n - h_i_n * u_i_n);
-                double g_i_j_v = (0.5) * (g_i_v + g_j_v) - (d_i_j/(2.0*dt)) * (h_j_n * v_j_n - h_i_n * v_i_n);
+            // f_j
+            array<double, 3> f_j = {
+                                  huv_j_n[0] * huv_j_n[1], 
+                                  huv_j_n[0] * huv_j_n[1] * huv_j_n[1] + (g/2.0) * huv_j_n[0] * huv_j_n[0], 
+                                  huv_j_n[0] * huv_j_n[2] * huv_j_n[1]
+                                 };
+            
+            // g_i
+            array<double, 3> g_i = {
+                                  huv_i_n[0] * huv_i_n[2], 
+                                  huv_i_n[0] * huv_i_n[2] * huv_i_n[1], 
+                                  huv_i_n[0] * huv_i_n[2] * huv_i_n[2] + (g/2.0) * huv_i_n[0] * huv_i_n[0]
+                                     };
+            // g_j
+            array<double, 3> g_j = {
+                                  huv_j_n[0] * huv_j_n[2], 
+                                  huv_j_n[0] * huv_j_n[2] * huv_j_n[1], 
+                                  huv_j_n[0] * huv_j_n[2] * huv_j_n[2] + (g/2.0) * huv_j_n[0] * huv_j_n[0]
+                                 };
 
-                // add flux (corrected for direction) times lenght to total_flux
-                total_flux_h += (f_i_j_h*n.x + g_i_j_h*n.y) * l_i_j;
-                total_flux_u += (f_i_j_u*n.x + g_i_j_u*n.y) * l_i_j;
-                total_flux_v += (f_i_j_v*n.x + g_i_j_v*n.y) * l_i_j;
+            // Flux Estimation using Roe approximate Riemann Solver
+            array<double, 3> F_eff = roe_solver_swe_2D(huv_i_n, huv_j_n, f_i, f_j, g_i, g_j, g, n, 0.1);
 
-            } 
+            // add to total flux * length
+            total_flux[0] += F_eff[0] * l_i_j;
+            total_flux[1] += F_eff[1] * l_i_j;
+            total_flux[2] += F_eff[2] * l_i_j;
 
+             
         }
 
         // calculate new values
-        h_i_np1 = h_i_n + (dt/A) * total_flux_h;
-        u_i_np1 = (h_i_n*u_i_n + (dt/A) * total_flux_u)/h_i_np1;
-        v_i_np1 = (h_i_n*v_i_n + (dt/A) * total_flux_v)/h_i_np1;
+        huv_i_np1[0] = huv_i_n[0] + (dt/A) * total_flux[0];
+        huv_i_np1[1] = (huv_i_n[0]*huv_i_n[1] + (dt/A) * total_flux[1])/huv_i_np1[0];
+        huv_i_np1[2] = (huv_i_n[0]*huv_i_n[2] + (dt/A) * total_flux[2])/huv_i_np1[0];
 
         // store new values
-        h_new.push_back(h_i_np1);
-        u_new.push_back(u_i_np1);
-        v_new.push_back(v_i_np1);
+        Q_new.push_back(huv_i_np1);
 
     }
 
     // then apply all the changes
     for (int i = 0; i<grid->cells.size(); i++) {
-        grid->cells[i].h = h_new[i];
-        grid->cells[i].u = u_new[i];
-        grid->cells[i].v = v_new[i];
+        grid->cells[i].h = Q_new[i][0];
+        grid->cells[i].u = Q_new[i][1];
+        grid->cells[i].v = Q_new[i][2];
     }
 
 }
 
+// RIEMANN SOLVERS --------------------------------------------------------------------------------
+// Roe's Solver for Shallow Water Equation 2D unstructured
+template <typename CellType>
+array<double, 3> Solver<CellType>::roe_solver_swe_2D(array<double, 3> huv_i_n, array<double, 3> huv_j_n, array<double, 3> f_i, array<double, 3> f_j, array<double, 3> g_i, array<double, 3> g_j, double g, Point n, double add_diffusion_coeff) {
+
+    double u_roe = (huv_i_n[1]*sqrt(huv_i_n[0]) + huv_j_n[1]*sqrt(huv_j_n[0]))/(sqrt(huv_i_n[0]) + sqrt(huv_j_n[0]));
+    double v_roe = (huv_i_n[2]*sqrt(huv_i_n[0]) + huv_j_n[2]*sqrt(huv_j_n[0]))/(sqrt(huv_i_n[0]) + sqrt(huv_j_n[0]));
+    double c_roe = sqrt((g/2.0) * (huv_i_n[0] + huv_j_n[0]));
+
+    // eigenvalues and determinant
+    double lambda1 = u_roe * n.x + v_roe * n.y;
+    double lambda2 = u_roe * n.x + v_roe * n.y - c_roe;
+    double lambda3 = u_roe * n.x + v_roe * n.y + c_roe;
+
+    double detA = lambda1 * lambda2 * lambda3;
+
+    // get effective fluxes
+    array<double, 3> F_eff = {(0.5) * (((f_i[0]*n.x + g_i[0]*n.y) + (f_j[0]*n.x + g_j[0]*n.y)) - detA * (huv_i_n[0] - huv_j_n[0])) - add_diffusion_coeff * (huv_i_n[0] - huv_j_n[0]), 
+                            (0.5) * (((f_i[1]*n.x + g_i[1]*n.y) + (f_j[1]*n.x + g_j[1]*n.y)) - detA * (huv_i_n[0] * huv_i_n[1] - huv_j_n[0] * huv_j_n[1]))- add_diffusion_coeff * (huv_i_n[0] * huv_i_n[1] - huv_j_n[0] * huv_j_n[1]), 
+                            (0.5) * (((f_i[2]*n.x + g_i[2]*n.y) + (f_j[2]*n.x + g_j[2]*n.y)) - detA * (huv_i_n[0] * huv_i_n[2] - huv_j_n[0] * huv_j_n[2]))- add_diffusion_coeff * (huv_i_n[0] * huv_i_n[2] - huv_j_n[0] * huv_j_n[2])
+                            };
+    return F_eff;
+}
+
+
+
+// CONSTRUCTION SITE: -----------------------------------------------------------------------------
+// HLL Solver for Shallow Water Equation 2D unstructured
+template <typename CellType>
+vector<double> Solver<CellType>::hll_solver_swe_2D(vector<double> huv_i_n, vector<double> huv_j_n, vector<double> f_i, vector<double> f_j, vector<double> g_i, vector<double> g_j, double g, Point n) {
+    
+    vector<double> F_HLL;
+
+    return F_HLL;
+}
 
 template <typename CellType>
 Solver<CellType>::~Solver() {};
