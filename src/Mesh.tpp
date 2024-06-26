@@ -566,6 +566,8 @@ template <typename CellType>
 void Mesh<CellType>::initalize_SWE_dam_break(double h1, double h2, double pos) {
 
     for (int i = 0; i< cells.size(); i++) {
+        //if (sqrt(cells[i].seed.y*cells[i].seed.y + cells[i].seed.x*cells[i].seed.x)  <= pos) {
+        //if (cells[i].seed.y + cells[i].seed.x  <= 2*pos) {
         if (cells[i].seed.x <= pos) {
             cells[i].h = h1;
             cells[i].u = 0;

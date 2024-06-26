@@ -3,8 +3,14 @@ project to eventually do hydrodynamics on different meshes, with maybe different
 
 ## Changes in last update
 ---
+Last Week
 - implemented roes approximate riemann solver plus additional diffusion
 - dam break problem 1D with analytical solution
+
+This Week
+- comparison animation for 1D dam break problem
+- turns out roe solver does not converge to analytical solution. Don't know where the mistake here is
+- Implemented HLL solver does the job though. (Reflective Boundary condition needs to be adapted). HLL quite diffusife as expected
 
 ---
 ### 2D Shallow water equations with Roe's approximate Riemann Solver
@@ -30,74 +36,61 @@ with $\lambda_1 = \tilde{u}n_x + \tilde{v}n_y,\;\;\;  \lambda_2 = \tilde{u}n_x +
 
 with that flux estimate we now can use the FV-Scheme.
 
-Roe solver has little numerical diffusion, however for larger discontinuities it is unstable quite easily. Solution to that are adding additional diffusion or flux limiters. We start with additional diffusion and will take a look at flux limiters next time.
-For stability we therefore will use
+Only problem though is that it does not work apparently. Idk. Probably have to rewite it completely. Rather focus on HLLC instead or similar?
 
-$$ \vec{F}_{roe,stable} = \vec{F}_{roe} -  \epsilon \cdot (U_i - U_j)$$
-
-### 2D SWE on cartesian mesh
+### 2D SWE using roes solver
+looks quite nice, not physically correct though
 <p align="center">
   <img src="/figures/6_2D_cartesian_low_res_50.gif" alt="6_2D_cartesian_low_res_50" width="45%">
-  <img src="/figures/6_2D_cartesian_high_res_200_diff0pt1.gif" alt="6_2D_cartesian_high_res_200_diff0pt1" width="45%">
-</p>
-cartesian mesh, (50x50, epsilon = 0) and (200x200, epsilon = 0.1), reflective boundary
-
-### 2D SWE on voronoi mesh
-<p align="center">
   <img src="/figures/6_2D_voronoi_low_res_50.gif" alt="6_2D_voronoi_low_res_50" width="45%">
-  <img src="/figures/6_2D_voronoi_high_res_200_diff0pt1.gif" alt="6_2D_voronoi_high_res_200_diff0pt1" width="45%">
 </p>
-voronoi mesh, (50x50, epsilon = 0) and (200x200, epsilon = 0.1), reflective boundary
+
+<p align="center">
+  <img src="/figures/7_roe_looks_bad.gif" alt="6_2D_cartesian_low_res_50" width="65%">
+</p>
+
+Does not converge to solution with higher N...
 
 --- 
-### Analytical Solution to 1D SWE: Dam Break Problem
+### HLL Solver
 
-Analytical solution:
+\[
+S_L = \min(u_L - \sqrt{gh_L}, u_R - \sqrt{gh_R})
+\]
+
+\[
+S_R = \max(u_L + \sqrt{gh_L}, u_R + \sqrt{gh_R})
+\]
+
+\[
+F_{i+\frac{1}{2}} =
+\begin{cases} 
+F_L & \text{if } S_L \geq 0 \\
+F_R & \text{if } S_R \leq 0 \\
+\frac{S_R F_L - S_L F_R + S_L S_R (U_R - U_L)}{S_R - S_L} & \text{if } S_L < 0 < S_R 
+\end{cases}
+\]
+
+Beforehand spent some time thinking which side is the left/right side, because Cell-i/Cell-j is not always left or right. Otherwise flux wouldnt be conserved. (Basically you cant switch L and R states while expecting just a sign flip in the flux because velocities do not flip)
+
+at the moment just sink or repeating boundary conditions... have to further check why this is the case
 <p align="center">
-  <img src="/figures/6_dam_break_analytical_0.png" alt="6_dam_break_analytical_0" width="45%">
-  <img src="/figures/6_dam_break_analytical_0pt175.png" alt="6_dam_break_analytical_0pt175" width="45%">
+  <img src="/figures/7_gauss_cartesian_sink_hll.gif" alt="6_2D_cartesian_low_res_50" width="45%">
+  <img src="/figures/7_gauss_voronoi_sink.gif" alt="6_2D_voronoi_low_res_50" width="45%">
 </p>
 
-Roe solver (no/little/much additional diffusion):
-<p align="center">
-  <img src="/figures/6_1D_no_damp.gif" alt="6_1D_no_damp" width="33%">
-  <img src="/figures/6_1D_little_damp.gif" alt="6_1D_little_damp" width="33%">
-  <img src="/figures/6_1D_damp.gif" alt="6_1D_damp" width="33%">
-</p>
--> additional diffusion stabilizes system
-
-Numerical solution rougly matches analytical one.
-<p align="center">
-  <img src="/figures/6_1D_damp_analytical.png" alt="6_dam_break_analytical_0" width="45%">
-</p>
-
----
-### Repeating, Reflective, Sink
-Sanity check for boundary conditions with new flux
+but generally the dam break problem looks promising
 
 <p align="center">
-  <img src="/figures/6_1D_gaussian_repeating.gif" alt="6_1D_gaussian_repeating" width="33%">
-  <img src="/figures/6_1D_gaussian_reflective.gif" alt="6_1D_gaussian_reflective" width="33%">
-  <img src="/figures/6_1D_gaussian_sink.gif" alt="6_1D_gaussian_sink" width="33%">
+  <img src="/figures/7_hll_1D_dam_break_sink.gif" alt="6_2D_voronoi_low_res_50" width="65%">
 </p>
-
----
-### Additional fun
-<p align="center">
-  <img src="/figures/6_2D_symmetric_gaussian_reflect.gif" alt="6_2D_symmetric_gaussian_reflect" width="45%">
-  <img src="/figures/6_2D_dam_break_onto_boundary.gif" alt="6_2D_dam_break_onto_boundary" width="45%">
-</p>
-
 
 ---
 still to do:
 
-- Try to understand analytical solution i just copied for now
-- Try flux limiter (e.g. superbee) instead of additional diffusion
-- Implement HLL Solver version as well
+- get reflective boundaries back to work
+- rewrite Roe solver, alternatively just work on HLLC?
 
 further ideas:
-
-- HLLC solver
-- What about second order? (MUSCL-Hancock?), also slope limiter here
+- What about second order? (MUSCL-Hancock?), using slope limiters here?
 - Then decision on whether to progress with non constant ocean floor (e.g. source terms), start with Euler Equations or start DG already? I think Euler FV would make most sense but not sure

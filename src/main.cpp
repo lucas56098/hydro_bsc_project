@@ -25,20 +25,21 @@ int main () {
 
     // SPECIFICATIONS -------------------------------------
     // grid
-    bool cartesian = true;
+    bool cartesian = false;
     string file_name = cartesian ? "cmesh" : "vmesh";
-    bool is_1D = true;
-    int N_row = 1000; // total cells = N^dimension //50*5 
+    bool is_1D = false; 
+    bool is_repeating = false;
+    int N_row = 100; // total cells = N^dimension //50*5 
 
     // simulaiton
-    int sim_steps = 200000; //5k is good
-    double total_sim_time = 0.8; //0.2 is good
+    int sim_steps = 4000; //5k is good
+    double total_sim_time = 1; //0.2 is good
     double dt = static_cast<double>(total_sim_time)/static_cast<double>(sim_steps);
-    int save_iter = 2000; // 50 maybe
+    int save_iter = 50; // 50 maybe
 
     // GRID GENERATION ------------------------------------
     Mesh<SWE_Cell> grid;
-    grid.generate_grid(cartesian, is_1D, N_row, 15, true);
+    grid.generate_grid(cartesian, is_1D, N_row, 15, is_repeating);
 
     // INITIAL CONDITIONS ---------------
     //for (int i = 0; i < 100; i++) {
@@ -48,11 +49,11 @@ int main () {
     //    }
     //}
     //grid.initalize_SWE_dam_break(2.0, 1.0);
-    //grid.cells[450].h = 2;
+    //grid.cells[1].h = 2;
     //grid.cells[50*25+25].h = 1.005;
-    //grid.initalize_SWE_gaussian(Point(0.5, 0.5), 1, 0.05);
+    grid.initalize_SWE_gaussian(Point(0.5, 0.5), 1, 0.05);
     grid.initalize_SWE_gaussian(Point(0.7, 0.5), 1, 0.05);
-    //grid.initalize_SWE_gaussian(Point(0.8, 0.1), 1, 0.05);
+    grid.initalize_SWE_gaussian(Point(0.8, 0.1), 1, 0.05);
 
 
     //grid.initialize_Q_cells(0, 5, 1, 1);
@@ -81,7 +82,7 @@ int main () {
             chrono::duration<double> elapsed = now - start;
             double eta = (elapsed.count() / (i + 1)) * (sim_steps - i - 1);
 
-            cout << "\rStep: " << i << "/" << sim_steps << ", Time: [" << format_time(elapsed.count()) << "<" << format_time(eta) << "]" << flush;
+            cout << "\rStep: " << i << "/" << sim_steps << ", Time: [" << format_time(elapsed.count()) << "<" << format_time(eta) << "]\n" << flush;
         }
 
         // different update steps for the solvers
@@ -89,7 +90,7 @@ int main () {
         //solver.conway();
         //solver.advection(dt, Point(0.5/sqrt(2), 0.5/sqrt(2)));
         //solver.shallow_water_1D_cartesian(dt);
-        solver.shallow_water_2D(dt, -1);
+        solver.shallow_water_2D(dt, 1, 0);
         //solver.shallow_water_2D_cartesian(dt);
     }
 

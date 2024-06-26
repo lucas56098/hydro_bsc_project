@@ -535,7 +535,7 @@ void Solver<CellType>::shallow_water_2D_cartesian(double dt, int boundary_condit
 
 // implementation of shallow water equation 2D voronoi using Roe solver
 template<typename CellType>
-void Solver<CellType>::shallow_water_2D(double dt, int boundary_cond) {
+void Solver<CellType>::shallow_water_2D(double dt, int boundary_cond, double numerical_diffusion_coeff) {
 
     // make sure that the cell type is correct
     if constexpr (is_same_v<CellType, SWE_Cell> == false) {
@@ -548,6 +548,8 @@ void Solver<CellType>::shallow_water_2D(double dt, int boundary_cond) {
 
     //go through each cell to calculate the new values
     for (int i = 0; i<grid->cells.size(); i++) {
+
+        //cout << "Cell: " << i << endl;
 
         double A = grid->cells[i].volume;
 
@@ -598,8 +600,17 @@ void Solver<CellType>::shallow_water_2D(double dt, int boundary_cond) {
                                   huv_j_n[0] * huv_j_n[2] * huv_j_n[2] + (g/2.0) * huv_j_n[0] * huv_j_n[0]
                                  };
 
+
+            //cout << "   Edge: " << j << endl;
+
             // Flux Estimation using Roe approximate Riemann Solver
-            array<double, 3> F_eff = roe_solver_swe_2D(huv_i_n, huv_j_n, f_i, f_j, g_i, g_j, g, n, 0.1);
+            array<double, 3> F_eff;
+
+            if (j == 2 && j == 3) {
+                F_eff = hll_solver_swe_2D(huv_j_n, huv_i_n, f_j, f_i, g_j, g_i, g, n, numerical_diffusion_coeff);
+            } else {
+                F_eff = hll_solver_swe_2D(huv_i_n, huv_j_n, f_i, f_j, g_i, g_j, g, n, numerical_diffusion_coeff);
+            }
 
             // add to total flux * length
             total_flux[0] += F_eff[0] * l_i_j;
@@ -610,9 +621,9 @@ void Solver<CellType>::shallow_water_2D(double dt, int boundary_cond) {
         }
 
         // calculate new values
-        huv_i_np1[0] = huv_i_n[0] + (dt/A) * total_flux[0];
-        huv_i_np1[1] = (huv_i_n[0]*huv_i_n[1] + (dt/A) * total_flux[1])/huv_i_np1[0];
-        huv_i_np1[2] = (huv_i_n[0]*huv_i_n[2] + (dt/A) * total_flux[2])/huv_i_np1[0];
+        huv_i_np1[0] = huv_i_n[0] - (dt/A) * total_flux[0];
+        huv_i_np1[1] = (huv_i_n[0]*huv_i_n[1] - (dt/A) * total_flux[1])/huv_i_np1[0];
+        huv_i_np1[2] = (huv_i_n[0]*huv_i_n[2] - (dt/A) * total_flux[2])/huv_i_np1[0];
 
         // store new values
         Q_new.push_back(huv_i_np1);
@@ -657,11 +668,103 @@ array<double, 3> Solver<CellType>::roe_solver_swe_2D(array<double, 3> huv_i_n, a
 // CONSTRUCTION SITE: -----------------------------------------------------------------------------
 // HLL Solver for Shallow Water Equation 2D unstructured
 template <typename CellType>
-vector<double> Solver<CellType>::hll_solver_swe_2D(vector<double> huv_i_n, vector<double> huv_j_n, vector<double> f_i, vector<double> f_j, vector<double> g_i, vector<double> g_j, double g, Point n) {
+array<double, 3> Solver<CellType>::hll_solver_swe_2D(array<double, 3> huv_i_n, array<double, 3> huv_j_n, array<double, 3> f_i, array<double, 3> f_j, array<double, 3> g_i, array<double, 3> g_j, double g, Point n, double add_diffusion_coeff) {
     
-    vector<double> F_HLL;
+    // make sure that left and right state are chosen correct for F
+    array<double, 3> huv_l_n;
+    array<double, 3> huv_r_n; 
+    array<double, 3> f_l; 
+    array<double, 3> f_r;
+    if (n.x > 0) {
+        huv_l_n = huv_i_n;
+        huv_r_n = huv_j_n;
+        f_l = f_i;
+        f_r = f_j;
+    } else {
+        huv_l_n = huv_j_n;
+        huv_r_n = huv_i_n;
+        f_l = f_j;
+        f_r = f_i;
+    }
+    
 
-    return F_HLL;
+
+// hier nochmal überdenken. da setze ich implizit ne Richtung drin i guess??
+    double SLF = min(huv_l_n[1] - sqrt(g*huv_l_n[0]), huv_r_n[1] - sqrt(g*huv_r_n[0]));
+    double SRF = max(huv_r_n[1] + sqrt(g*huv_r_n[0]), huv_l_n[1] + sqrt(g*huv_l_n[0]));
+/*
+    double h_hat = (1.0/g) * ((0.5)*(sqrt(g*huv_l_n[0]) + sqrt(g*huv_r_n[0])) + 0.25* (huv_l_n[1] - huv_r_n[1]))*((0.5)*(sqrt(g*huv_l_n[0]) + sqrt(g*huv_r_n[0])) + 0.25* (huv_l_n[1] - huv_r_n[1]));
+
+    double p_L = 1;
+    double p_R = 1;
+
+    if (h_hat > huv_l_n[0]) {
+        p_L = (1/huv_l_n[0]) * sqrt(0.5 * h_hat * (h_hat - huv_l_n[0]));
+    }
+
+
+    if (h_hat > huv_r_n[0]) {
+        p_R = (1/huv_r_n[0]) * sqrt(0.5 * h_hat * (h_hat - huv_r_n[0]));
+    }
+
+    SLF = huv_l_n[1] - p_L * sqrt(g*huv_l_n[0]);
+    SRF = huv_r_n[1] + p_R * sqrt(g*huv_r_n[0]);
+*/
+
+    //cout << SLF << "   " << SRF << endl;
+
+    array<double, 3> F_HLL;
+    if (SLF >= 0) {
+        F_HLL = f_l;
+    } else if (SLF < 0 && SRF > 0) {
+        F_HLL[0] = (SRF * f_l[0] - SLF * f_r[0] + SLF * SRF * (huv_r_n[0] - huv_l_n[0])) / (SRF - SLF);
+        F_HLL[1] = (SRF * f_l[1] - SLF * f_r[1] + SLF * SRF * (huv_r_n[0] * huv_r_n[1] - huv_l_n[0] * huv_l_n[1])) / (SRF - SLF);
+        F_HLL[2] = (SRF * f_l[2] - SLF * f_r[2] + SLF * SRF * (huv_r_n[0] * huv_r_n[2] - huv_l_n[0] * huv_l_n[2])) / (SRF - SLF);
+    } else if (SRF <= 0) {
+        F_HLL = f_r;
+    }
+
+    // make sure that left and right state are chosen correct for G
+    array<double, 3> g_l;
+    array<double, 3> g_r;
+    if (n.y > 0) {
+        huv_l_n = huv_i_n;
+        huv_r_n = huv_j_n;
+        g_l = g_i;
+        g_r = g_j;
+    } else {
+        huv_l_n = huv_j_n;
+        huv_r_n = huv_i_n;
+        g_l = g_j;
+        g_r = g_i;
+    }
+
+    // calculate wave speeds
+    double SLG = min(huv_l_n[1] - sqrt(g*huv_l_n[0]), huv_r_n[1] - sqrt(g*huv_r_n[0]));
+    double SRG = max(huv_r_n[1] + sqrt(g*huv_r_n[0]), huv_l_n[1] + sqrt(g*huv_l_n[0]));
+
+    // HLL for G
+    array<double, 3> G_HLL;
+    if (SLG >= 0) {
+        G_HLL = g_l;
+    } else if (SLG < 0 && SRG > 0) {
+        G_HLL[0] = (SRG * g_l[0] - SLG * g_r[0] + SLG * SRG * (huv_r_n[0] - huv_l_n[0])) / (SRG - SLG);
+        G_HLL[1] = (SRG * g_l[1] - SLG * g_r[1] + SLG * SRG * (huv_r_n[0] * huv_r_n[1] - huv_l_n[0] * huv_l_n[1])) / (SRG - SLG);
+        G_HLL[2] = (SRG * g_l[2] - SLG * g_r[2] + SLG * SRG * (huv_r_n[0] * huv_r_n[2] - huv_l_n[0] * huv_l_n[2])) / (SRG - SLG);
+    } else if (SRG <= 0) {
+        G_HLL = g_r;
+    }
+
+    array<double, 3> F_eff = {
+        (F_HLL[0]*n.x + G_HLL[0]*n.y) - add_diffusion_coeff * (huv_l_n[0] - huv_r_n[0]),
+        (F_HLL[1]*n.x + G_HLL[1]*n.y) - add_diffusion_coeff * (huv_l_n[0] * huv_l_n[1] - huv_r_n[0] * huv_r_n[1]),
+        (F_HLL[2]*n.x + G_HLL[2]*n.y) - add_diffusion_coeff * (huv_l_n[0] * huv_l_n[2] - huv_r_n[0] * huv_r_n[2])
+    };
+
+
+    //cout << F_eff[0] << endl;
+
+    return F_eff;
 }
 
 template <typename CellType>

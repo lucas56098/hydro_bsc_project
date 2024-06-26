@@ -9,6 +9,7 @@ from matplotlib.collections import PolyCollection
 from matplotlib.animation import FuncAnimation
 from tqdm import tqdm
 from scipy.optimize import curve_fit
+from scipy.optimize import brentq
 
 # processes mesh_file and returns seeds, polygons and the given quantities in an array
 def process_file(file_name, sort_option = 'none', print_option = False):
@@ -174,7 +175,7 @@ def analytic_Q(x, t, velocity, a, b):
 
 
 # function to make 1D animation of the mesh
-def animation1D(filerange, filenames, labels, sort_option, quantity_index, fps = 30, title = '', x_label = '', y_label = 'Q-Value', xlim = (0,1), ylim = (0, 1), save_name = 'animation1D', bin_size = 0, analytic_solution = False, velocity = 0.5, a = 0, b = 0.1):
+def animation1D(filerange, filenames, labels, sort_option, quantity_index, fps = 30, title = '', x_label = '', y_label = 'Q-Value', xlim = (0,1), ylim = (0, 1), save_name = 'animation1D', bin_size = 0, analytic_solution = "", velocity = 0.5, a = 0, b = 0.1, hl = 2, hr= 1, g = 1, x0 = 0.5):
     
     def update1D(frame):
 
@@ -193,10 +194,42 @@ def animation1D(filerange, filenames, labels, sort_option, quantity_index, fps =
 
                 plt.plot(avg_seed, avg_Q, label = labels[i] + '_avg', color = 'black')
         
-            if analytic_solution:
+            if analytic_solution == "adv_step":
                 lsp = np.linspace(xlim[0], xlim[1], 1000)
                 Q_analytic = [analytic_Q(x, Q[0, 0], velocity, a, b) for x in lsp]
                 plt.plot(lsp, Q_analytic, label = labels[i] + '_analytic', color = 'red')
+
+            if analytic_solution == "swe_dam":
+
+                cl = np.sqrt(g*hl)
+                cr = np.sqrt(g*hr)
+
+                def get_cm(cm):
+                    return -8 * cr**2 * cm**2 * (cl - cm)**2 + (cm**2 - cr**2)**2 * (cm**2 + cr**2)
+                
+                cm = brentq(get_cm, min(cl, cr), max(cl, cr))
+                hm = (cm**2)/g
+
+                def get_h_at_t_and_x(x, t, x0, cl, cm, cr, hl, hm, hr, g):
+
+                    xa = x0 - cl*t
+                    xb = x0 + t*(2*cl - 3*cm)
+                    xc = x0 + t * ((2 * cm**2 * (cl - cm))/(cm**2 - cr**2))
+
+                    if x < xa:
+                        return hl
+                    elif xa < x and x < xb:
+                        return (4)/(9*g) * (cl - ((x-x0)/(2*t)))**2
+                    elif xb < x and x < xc:
+                        return hm
+                    elif xc < x:
+                        return hr
+                    return None
+
+                lsp = np.linspace(xlim[0], xlim[1], 1000)
+                h_analytic = [get_h_at_t_and_x(x, Q[0, 0], x0, cl, cm, cr, hl, hm, hr, g) for x in lsp]
+                plt.plot(lsp, h_analytic, label = labels[i] + '_analytic', color = 'red')
+
 
         if title != '':
             plt.title(title)
