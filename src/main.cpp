@@ -11,15 +11,6 @@
 #include "utilities/Functions.h"
 using namespace std;
 
-// formats time from seconds into mm:ss
-string format_time(double seconds) {
-    int minutes = static_cast<int>(seconds) / 60;
-    int sec = static_cast<int>(seconds) % 60;
-    stringstream ss;
-    ss << setfill('0') << setw(2) << minutes << ":" << setfill('0') << setw(2) << sec;
-    return ss.str();
-}
-
 // MAIN :  -------------------------------------------------------------------------------------------------------
 int main () {
 
@@ -29,39 +20,35 @@ int main () {
     string file_name = cartesian ? "cmesh" : "vmesh";
     bool is_1D = false; 
     bool is_repeating = false;
-    int N_row = 100; // total cells = N^dimension //50*5 
+    int N_row = 10; // total cells = N^dimension
 
     // simulaiton
-    int sim_steps = 4000; //5k is good
-    double total_sim_time = 1; //0.2 is good
+    int sim_steps = 169;
+    double total_sim_time = 0.6;
     double dt = static_cast<double>(total_sim_time)/static_cast<double>(sim_steps);
-    int save_iter = 50; // 50 maybe
+    int save_iter = 1;
 
     // GRID GENERATION ------------------------------------
     Mesh<SWE_Cell> grid;
-    grid.generate_grid(cartesian, is_1D, N_row, 15, is_repeating);
+    grid.generate_grid(cartesian, is_1D, N_row, 5, is_repeating);
 
     // INITIAL CONDITIONS ---------------
-    //for (int i = 0; i < 100; i++) {
-    //    for (int j = 0; j < 1; j++) {
-            //grid.cells[N_row * i + j].h = 2;
-    //        grid.cells[i].h = 2;
-    //    }
-    //}
-    //grid.initalize_SWE_dam_break(2.0, 1.0);
-    //grid.cells[1].h = 2;
-    //grid.cells[50*25+25].h = 1.005;
-    grid.initalize_SWE_gaussian(Point(0.5, 0.5), 1, 0.05);
-    grid.initalize_SWE_gaussian(Point(0.7, 0.5), 1, 0.05);
-    grid.initalize_SWE_gaussian(Point(0.8, 0.1), 1, 0.05);
-
-
-    //grid.initialize_Q_cells(0, 5, 1, 1);
+    
+    // initial conditions for advection - - - - - - - - - - 
     //grid.initalize_Q_circle(Point(0.5, 0.5), 0.1);
     //grid.save_Q_diff(0, true, true);
     //grid.save_L1_adv_circle(0, true, Point(0.5/sqrt(2), 0.5/sqrt(2)));
     //grid.save_L1_adv_1Dstepfunc(0, true, 0.5, 0, 0.1);
     
+    // initial conditions for SWE - - - - - - - - - - - - - 
+    //grid.initalize_SWE_dam_break(2.0, 1.0);
+    grid.initalize_SWE_gaussian(Point(0.5, 0.5), 1, 0.1);
+    //grid.initalize_SWE_gaussian(Point(0.7, 0.5), 1, 0.05);
+    //grid.initalize_SWE_gaussian(Point(0.8, 0.1), 1, 0.05);
+    //grid.save_L1_swe_dam_break(0, true);
+    
+
+    // initialize boundary condition - - - - - - - - - - - - 
     //grid.inialize_boundary_struct(Point(0.7, 0.25), 0.2, 0.5);
 
     // SIMULATION -----------------------------------------
@@ -69,33 +56,36 @@ int main () {
 
     // start timer
     auto start = chrono::high_resolution_clock::now();
-    for (int i = 0; i<sim_steps; i++) {
+    for (int i = 0; i<sim_steps+1; i++) {
         
         // save meshfiles
         if (i%save_iter == 0) {
+        
             grid.save_mesh(i, file_name, dt);
+
+            // Q conservation - - - - - - - - - - - 
             //grid.save_Q_diff(i * dt, false, true);
+            
+            // L1 ERRORS - - - - - - - - - - - - - -
             //grid.save_L1_adv_circle(i * dt, false, Point(0.5/sqrt(2), 0.5/sqrt(2)));
             //grid.save_L1_adv_1Dstepfunc(i*dt, false, 0.5, 0, 0.1);
+            //grid.save_L1_swe_dam_break(i*dt, false);
 
+            // print update on simulation progress
             auto now = chrono::high_resolution_clock::now();
             chrono::duration<double> elapsed = now - start;
             double eta = (elapsed.count() / (i + 1)) * (sim_steps - i - 1);
-
-            cout << "\rStep: " << i << "/" << sim_steps << ", Time: [" << format_time(elapsed.count()) << "<" << format_time(eta) << "]\n" << flush;
+            cout << "\rStep: " << i << "/" << sim_steps << ", Time: [" << format_time(elapsed.count()) << "<" << format_time(eta) << "]" << flush;
         }
 
-        // different update steps for the solvers
+        // different update steps for the solvers - - - - - - - - - - - - - - -
         //solver.diffusion_like(dt);
         //solver.conway();
         //solver.advection(dt, Point(0.5/sqrt(2), 0.5/sqrt(2)));
-        //solver.shallow_water_1D_cartesian(dt);
-        solver.shallow_water_2D(dt, 1, 0);
-        //solver.shallow_water_2D_cartesian(dt);
+        solver.shallow_water(dt, 1, 0);
     }
 
     cout << "done" << endl;
-
 
     return 0;    
 }

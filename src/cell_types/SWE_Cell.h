@@ -3,7 +3,7 @@
 #include "Cell.h"
 #include <iostream>
 
-// cell to solve the shallow water equation later on
+// cell to solve the shallow water equation
 // assumptions: rho = const, flat bottom of the sea
 class SWE_Cell : public Cell {
 public:

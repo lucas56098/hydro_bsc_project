@@ -11,9 +11,11 @@ from tqdm import tqdm
 from scipy.optimize import curve_fit
 from scipy.optimize import brentq
 
+
 # processes mesh_file and returns seeds, polygons and the given quantities in an array
 def process_file(file_name, sort_option = 'none', print_option = False):
     
+    # read data into data frame
     df = pd.read_csv(file_name, delimiter='|', header=None, skiprows=1)
     Q = []
     seeds = []
@@ -60,67 +62,88 @@ def process_file(file_name, sort_option = 'none', print_option = False):
 
 
 # function to do a 2D plot of the mesh with the colormap according to Q
-def plot_2D(polygons, Q, cmap = 'viridis', vmin = 0, vmax = 1, edgecolor = 'face', cbar_label = 'Q_value', title = '', save = True, save_name = 'image2D', figsize = (12, 10), logscale = False, logmin = 1e-18):
+def plot_2D(polygons, Q, cmap = 'viridis', vmin = 0, vmax = 1, edgecolor = 'face', cbar_label = 'Q_value', title = '', xlabel = "", ylabel = "", save = True, save_name = 'image2D', figsize = (12, 10), logscale = False, logmin = 1e-18):
 
+    # optionally prepare Q for logscale
     if logscale:
-        #Q = np.log10(np.maximum(Q, np.zeros(len(Q)) + logmin))
         Q = np.where(np.isinf(Q), -np.inf, np.log10(np.maximum(Q, np.zeros(len(Q)) + logmin)))
 
+    # define plot, norm, poly collection
     fig, ax = plt.subplots(figsize = figsize)
     norm = mcolors.Normalize(vmin=vmin, vmax=vmax)
     collection = PolyCollection(polygons, array=Q, cmap=cmap, norm=norm, edgecolor=edgecolor) # edgecolor = 'none' / 'face'
     print('finished PolyCollection')
+    
+    # add collection to axis and set axis options
     ax.add_collection(collection)
-    #ax.autoscale_view()
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
-    
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+
+    # set colorbar
     cbar = fig.colorbar(collection, ax=ax)
     cbar.set_label(cbar_label)
-    if save:
-        plt.savefig('figures/' + save_name + '.png')
+
+    # optional set title
     if title != '':
         plt.title(title)
+
+    # optional save plot
+    if save:
+        plt.savefig('figures/' + save_name + '.png')
+
     plt.show()
 
 
 # function to do a animation of the mesh evoulution in 2D
-def animation2D(file_name, frames, fps=30, animation_name='animation2D', cbar_label='Q-value', cmap='viridis', edgecolor='face', vmin=0, vmax=1, title='', lim=(0, 1), figsize=(12, 10), logscale=False, logmin=1e-18, quantity_index = 1, plot_seeds = False):
+def animation2D(file_name, frames, fps=30, animation_name='animation2D', cbar_label='Q-value', cmap='viridis', edgecolor='face', vmin=0, vmax=1, title='', xlabel = "", ylabel = "", lim=(0, 1), figsize=(12, 10), logscale=False, logmin=1e-18, quantity_index = 1, plot_seeds = False):
     
+    # define plot, norm, and still empty collection
     fig, ax = plt.subplots(figsize=figsize)
     norm = mcolors.Normalize(vmin=vmin, vmax=vmax)
     collection = PolyCollection([], array=[], cmap=cmap, norm=norm)
     collection.set_edgecolor(edgecolor)
+
+    # add empty collection to axis and set axis options
     ax.add_collection(collection)
     ax.set_xlim(lim[0], lim[1])
     ax.set_ylim(lim[0], lim[1])
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+
+    # optional set title
     if title != '':
         ax.set_title(title)
+
+    # set colorbar
     cbar = fig.colorbar(collection, ax=ax)
     cbar.set_label(cbar_label)
 
+    # add empty scatter plot to eventually later on show seeds
     scatter_plot = ax.scatter([], [], color = 'tab:blue')
 
     # animation update function
     def update(frame):
 
-
+        # open file for this frame
         file_path = "files/" + file_name + str(frame) + ".csv"
         seeds, polygons, Q = process_file(file_path)
+        
+        # get Q and polygons for collection
         Q = Q[:, quantity_index]
         if logscale:
-            #Q = np.log10(np.maximum(Q, np.zeros(len(Q)) + logmin))
             Q = np.where(np.isinf(Q), -np.inf, np.log10(np.maximum(Q, np.zeros(len(Q)) + logmin)))
         collection.set_paths(polygons)
         collection.set_array(Q)
-        #collection.set_norm(mcolors.Normalize(vmin = 1 - (max(Q) - 1), vmax = max(Q)))
 
+        # optional plot seeds
         if plot_seeds:
             scatter_plot.set_offsets(seeds)
         
         return collection,
 
-    # progress bar for animation frames
+    # update loop with progress bar
     with tqdm(total=len(frames), desc="Generating Animation") as pbar:
         def wrapped_update(frame):
             result = update(frame)
@@ -135,39 +158,50 @@ def animation2D(file_name, frames, fps=30, animation_name='animation2D', cbar_la
 
 # function to do 1D-plot of vmesh and cartesian Q values
 def plot_1D(filenames, labels, sort_option, title = '', x_label = '', y_label = 'Q-Value', xlim = (0,1), ylim = (0, 1), save_name = '', bin_size = 0, logscale = False, quantity_index = 1):
-
+    
+    # go through all filenames
     for i in range(len(filenames)):
+
+        # open file
         seed, polygons, Q = process_file("files/" + filenames[i] + ".csv", sort_option)
+
+        # plot Q[:, quantity_index] sorted by x or y
         if sort_option == 'y':
             plt.scatter(seed[:, 1], Q[:, quantity_index], marker = '.', label= labels[i])
         elif sort_option == 'x':
             plt.scatter(seed[:, 0], Q[:, quantity_index], marker = '.', label= labels[i])
 
+        # optional binned plot in x direction
         if bin_size != 0:
-            avg_seed = [np.mean(seed[i:i+bin_size, 1]) for i in range(0, int(len(seed[:, 1])), bin_size)]
+            avg_seed = [np.mean(seed[i:i+bin_size, 0]) for i in range(0, int(len(seed[:, 1])), bin_size)]
             avg_Q = [np.mean(Q[i:i+bin_size, quantity_index]) for i in range(0, int(len(Q[:, quantity_index])), bin_size)]
-
             plt.plot(avg_seed, avg_Q, label = labels[i] + 'avg', color = 'black')
 
+    # optional set title
     if title != '':
         plt.title(title)
+
+    # set labels, limits, legend
     plt.xlabel(x_label)
     plt.ylabel(y_label)
     plt.xlim(xlim[0], xlim[1])
     plt.ylim(ylim[0], ylim[1])
+    plt.legend()
+
+    # optional logscale
     if logscale:
         plt.yscale('log')
-    plt.legend()
+
+    # optional save to file
     if save_name != '':
         plt.savefig("figures/" + save_name + ".png")
+
     plt.show()
 
 
 ## analytic solution to 1D advection of step function
 def analytic_Q(x, t, velocity, a, b):
-
     dx = t * velocity
-
     if (x > dx + a and x<b+dx):
         return 1
     else:
@@ -177,45 +211,75 @@ def analytic_Q(x, t, velocity, a, b):
 # function to make 1D animation of the mesh
 def animation1D(filerange, filenames, labels, sort_option, quantity_index, fps = 30, title = '', x_label = '', y_label = 'Q-Value', xlim = (0,1), ylim = (0, 1), save_name = 'animation1D', bin_size = 0, analytic_solution = "", velocity = 0.5, a = 0, b = 0.1, hl = 2, hr= 1, g = 1, x0 = 0.5):
     
+    # function to update the plot for given frame
     def update1D(frame):
 
+        # clear plot
         plt.cla()
+
+        # go through all filenames
         for i in range(len(filenames)):
+
+            # load file
             seed, polygons, Q = process_file("files/" + filenames[i] + str(frame) + ".csv", sort_option)
 
+            # sort and plot by x, y, diagonal or filterd diagonal
             if sort_option == 'y':
                 plt.plot(seed[:, 1], Q[:, quantity_index[i]], label= labels[i])
             elif sort_option == 'x':
-                plt.plot(seed[:, 0], Q[:, quantity_index[i]], label= labels[i])
+                plt.scatter(seed[:, 0], Q[:, quantity_index[i]], label= labels[i], s=0.8)
+            elif sort_option == 'diagonal':
+                # plot a projection onto diagonal here
+                plt.scatter(((1/np.sqrt(2)) * (seed[:, 0] + seed[:, 1])), Q[:, quantity_index[i]], label= labels[i], s=0.8)
+            elif sort_option == 'diagonal_filter':
+                # calculate distance of points to diagonal
+                distance_to_diagonal = np.abs(seed[:, 0] - seed[:, 1]) / np.sqrt(2)
+                
+                # filter indices by distance limit
+                filtered_indices = distance_to_diagonal < 0.05
+                filtered_seed = seed[filtered_indices]
+                filtered_Q = Q[filtered_indices]
 
+                # plot filtered seeds projected onto diagonal
+                proj_seed = (1/np.sqrt(2)) * (filtered_seed[:, 0] + filtered_seed[:, 1])
+                plt.scatter(proj_seed, filtered_Q[:, quantity_index[0]], label=labels[i], s=0.8)
+
+            # optional binned plot
             if bin_size != 0:
                 avg_seed = [np.mean(seed[i:i+bin_size, 1]) for i in range(0, int(len(seed[:, 1])), bin_size)]
                 avg_Q = [np.mean(Q[i:i+bin_size, quantity_index[i]]) for i in range(0, int(len(Q[:, quantity_index[i]])), bin_size)]
-
                 plt.plot(avg_seed, avg_Q, label = labels[i] + '_avg', color = 'black')
         
+            # optional add analytic solution for advecting step
             if analytic_solution == "adv_step":
                 lsp = np.linspace(xlim[0], xlim[1], 1000)
                 Q_analytic = [analytic_Q(x, Q[0, 0], velocity, a, b) for x in lsp]
                 plt.plot(lsp, Q_analytic, label = labels[i] + '_analytic', color = 'red')
 
-            if analytic_solution == "swe_dam":
+            # optional add analytic solution for shallow water dam break
+            if analytic_solution == "swe_dam" and i == range(len(filenames))[-1]:
 
+                # calculate wave speeds
                 cl = np.sqrt(g*hl)
                 cr = np.sqrt(g*hr)
 
+                # root of this function gives cm
                 def get_cm(cm):
                     return -8 * cr**2 * cm**2 * (cl - cm)**2 + (cm**2 - cr**2)**2 * (cm**2 + cr**2)
                 
+                # get cm and hm by finding the root
                 cm = brentq(get_cm, min(cl, cr), max(cl, cr))
                 hm = (cm**2)/g
 
+                # given cm, hm now get analytical solution
                 def get_h_at_t_and_x(x, t, x0, cl, cm, cr, hl, hm, hr, g):
 
-                    xa = x0 - cl*t
-                    xb = x0 + t*(2*cl - 3*cm)
-                    xc = x0 + t * ((2 * cm**2 * (cl - cm))/(cm**2 - cr**2))
+                    # positions of the shocks and rarefications
+                    xa = x0 - cl*t                                              # leftmost rarefication
+                    xb = x0 + t*(2*cl - 3*cm)                                   # rightmos rarefication
+                    xc = x0 + t * ((2 * cm**2 * (cl - cm))/(cm**2 - cr**2))     # right shock
 
+                    # return h according to analytical solution
                     if x < xa:
                         return hl
                     elif xa < x and x < xb:
@@ -226,21 +290,27 @@ def animation1D(filerange, filenames, labels, sort_option, quantity_index, fps =
                         return hr
                     return None
 
+                # plot analytical solution given we now have a way to calculate it
                 lsp = np.linspace(xlim[0], xlim[1], 1000)
                 h_analytic = [get_h_at_t_and_x(x, Q[0, 0], x0, cl, cm, cr, hl, hm, hr, g) for x in lsp]
-                plt.plot(lsp, h_analytic, label = labels[i] + '_analytic', color = 'red')
+                plt.plot(lsp, h_analytic, label = 'analytic', color = 'red')
 
-
+        # optional title
         if title != '':
             plt.title(title)
+
+        # set labels, limits, legend
         plt.xlabel(x_label)
         plt.ylabel(y_label)
         plt.xlim(xlim[0], xlim[1])
         plt.ylim(ylim[0], ylim[1])
         plt.legend(loc = 'upper right')
 
+
+    # define plot
     fig, ax = plt.subplots()
 
+    # update loop with progress bar
     with tqdm(total=len(filerange), desc='Generating Animation') as pbar:
         def update_and_progress(frame):
             update1D(frame)
@@ -254,26 +324,35 @@ def animation1D(filerange, filenames, labels, sort_option, quantity_index, fps =
 # function to do L1 error plots over time
 def plot_L1_error_over_time(filenames = ["L1_error"], labels = ["L1_error"], title = 'L1 error over time', xlabel = "time in [a.u]", ylabel = 'L1 error', save_name = 'L1_over_time', axvlinepos=0):
     
+    # go through all filenames
     for i in range(len(filenames)):
 
+        # load time and L1 error from file using data frame
         df = pd.read_csv('files/' + filenames[i] + '.csv', decimal = ',', header=None)
         time = df[0].astype(float).values
         L1 = df[1].astype(float).values
+
+        # plot L1 over time
         plt.plot(time, L1, label = labels[i])
 
+    # title, labels, legend
     plt.title(title)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
+    plt.legend()
+
+    # optional vline
     if axvlinepos != 0:
         plt.axvline(axvlinepos, color = "black")
-    plt.legend()
+
+    # save plot
     plt.savefig("figures/"+ save_name +".png")
     plt.show() 
 
 
-# 1/sqrt(x) fit function
+# a/x^b fit function for L1 convergence over N
 def fit_function(x, a, b):
-    return a/np.sqrt(b * x)
+    return a/x**b
 
 
 # function to plot L1 error over N
@@ -281,14 +360,19 @@ def plot_L1_error_over_N(filenames, N_list, index = -1):
 
     L1s = []
 
+    # for all files store L1 at given index in L1s list
     for i in range(len(filenames)):
         df = pd.read_csv('files/' + filenames[i] + '.csv', decimal = ',', header=None)
         L1 = df[1].astype(float).values
         L1s.append(L1[index])
 
+    # fit 1/x function onto L1 over N data
     popt, pcov = curve_fit(fit_function, N_list, L1s)
+    print(popt)
+
+    # plot result
     lsp = np.linspace(min(N_list), max(N_list), 10)
-    plt.plot(lsp, fit_function(lsp, *popt), label = 'f(x) = 1/sqrt(x)', color = 'grey')
+    plt.plot(lsp, fit_function(lsp, *popt), label = f'f(x) = {popt[0]:.2f}/x^{popt[1]:.2f}', color = 'grey')
     plt.scatter(N_list, L1s, marker = 'o', label = 'L1-error')
     plt.title("L1 error over resolution - Vmesh Circle")
     plt.xlabel("N_x")
@@ -303,16 +387,24 @@ def plot_L1_error_over_N(filenames, N_list, index = -1):
 # function to plot difference in total Q over time
 def plot_Q_diff_over_time(filename = 'total_Q_diff', logscale = True, title = 'Change in total Q over time', xlabel = "time in [a.u]", ylabel = '|total_Q - total_Q_initial|', save_name = 'delta_Q_total', bar = 0):
 
+    # load file into data frame and get time and Q_diff
     df = pd.read_csv('files/' + filename + '.csv', decimal=',', header=None)
     times = df[0].astype(float).values
     diff_Q = df[1].astype(float).values
 
+    # plot change
     plt.plot(times, np.abs(diff_Q))
+
+    # optional log scale
     if logscale:
         plt.yscale('log')
-    plt.title(title)
+
+    # optional vlines
     if bar != 0:
         plt.axvline(bar, color = 'tab:orange')
+    
+    # title, label, save
+    plt.title(title)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
     plt.savefig("figures/"+ save_name +".png")

@@ -62,6 +62,7 @@ int Mesh<CellType>::get_sort_index(Point pt, int sort_grid_size, int sort_scheme
     return index;
 }
 
+
 // Function out of vmp main.cpp
 // RANDOM POINTS: generates seed points to use for mesh generation
 template <typename CellType>
@@ -207,7 +208,6 @@ void Mesh<CellType>::generate_uniform_grid2D(Point start, int n_hor, int n_vert,
             edgesin.push_back(f3);
 
             // set face length to dist
-
             edgesin[0].length = disty;
             edgesin[1].length = distx;
             edgesin[2].length = disty;
@@ -521,13 +521,15 @@ void Mesh<CellType>::initialize_Q_cells(int a, int b, double value, int step) {
         exit(EXIT_FAILURE);
     }
 
+    // set Q for all indices between a and b to value
     for (int i = a; i < b; i+=step) {
         cells[i].Q = value;
     }
 
 }
 
-// sets the initial condition according to given function
+
+// sets the initial condition according to given analytical Q_circle
 template <typename CellType>
 void Mesh<CellType>::initalize_Q_circle(Point p0, double r, double Qval) {
 
@@ -537,11 +539,13 @@ void Mesh<CellType>::initalize_Q_circle(Point p0, double r, double Qval) {
         exit(EXIT_FAILURE);
     }
 
+    // set Q_values for initial circle using analytical solution at t = 0
     for (int i = 0; i < cells.size(); i++) {
-        cells[i].Q = Qval*advecting_circle(cells[i].seed, 0, Point(0, 0), p0, r);
+        cells[i].Q = Qval * advecting_circle(cells[i].seed, 0, Point(0, 0), p0, r);
     }
 
 }
+
 
 // Function to initalize a gaussian for shallow water equations
 template <typename CellType>
@@ -549,11 +553,12 @@ void Mesh<CellType>::initalize_SWE_gaussian(Point p0, double A, double sigma) {
 
     for (int i = 0; i < cells.size(); i++) {
 
+        // set height according to gaussian shape
         double dx = cells[i].seed.x - p0.x;
         double dy = cells[i].seed.y - p0.y;
-        //double dy = 0;
         cells[i].h += A * exp(- (dx * dx + dy * dy) / (2 * sigma * sigma));
 
+        // no inital velocities
         cells[i].u = 0;
         cells[i].v = 0;
 
@@ -561,14 +566,29 @@ void Mesh<CellType>::initalize_SWE_gaussian(Point p0, double A, double sigma) {
 
 }
 
-// 
-template <typename CellType>
-void Mesh<CellType>::initalize_SWE_dam_break(double h1, double h2, double pos) {
 
+// sets initial conditions for SWE dam break (x, diagonal, circular)
+template <typename CellType>
+void Mesh<CellType>::initalize_SWE_dam_break(double h1, double h2, double pos, int dam_break_type) {
+
+    // go through all cells
     for (int i = 0; i< cells.size(); i++) {
-        //if (sqrt(cells[i].seed.y*cells[i].seed.y + cells[i].seed.x*cells[i].seed.x)  <= pos) {
-        //if (cells[i].seed.y + cells[i].seed.x  <= 2*pos) {
-        if (cells[i].seed.x <= pos) {
+
+        bool set_values = false;
+
+        // dam break in x direction
+        if (dam_break_type == 0) {
+            set_values = (cells[i].seed.x <= pos);
+        // dam break in diagonal direction
+        } else if (dam_break_type == 1) {
+            set_values = (cells[i].seed.y + cells[i].seed.x  <= 2*pos);
+        // circular dam break
+        } else if (dam_break_type == 2) {
+            set_values = (sqrt(cells[i].seed.y*cells[i].seed.y + cells[i].seed.x*cells[i].seed.x)  <= pos);
+        }
+
+        // set values according to bool
+        if (set_values) {
             cells[i].h = h1;
             cells[i].u = 0;
             cells[i].v = 0;
@@ -582,15 +602,14 @@ void Mesh<CellType>::initalize_SWE_dam_break(double h1, double h2, double pos) {
 }
 
 
-
-// Function to create an internal boundary
+// Function to create an internal boundary structure (just a square at the moment)
 template <typename CellType>
 void Mesh<CellType>::inialize_boundary_struct(Point p0, double l_x, double l_y) {
 
     // loop through all cells
     for (int i = 0; i < cells.size(); i++) {
 
-        // if cell[i] is inside square make it boundary cell
+        // if cell[i] is inside square make it boundary cell (in principle any other if condition could be built here)
         if (cells[i].seed.x < p0.x + l_x && cells[i].seed.x > p0.x && cells[i].seed.y < p0.y + l_y && cells[i].seed.y > p0.y) { 
             make_cell_boundary_cell(i);
         }
@@ -610,7 +629,7 @@ void Mesh<CellType>::make_cell_boundary_cell(int i) {
 
     // make sure that the cell type is correct
     if constexpr (is_same_v<CellType, SWE_Cell> == true) {
-        // boundary cells have Q = -INFINITY such that they will not be plotted in visualization
+        // boundary cells have h = -INFINITY such that they will not be plotted in visualization
         cells[i].h = -INFINITY;
         cells[i].u = 0;
         cells[i].v = 0;
@@ -633,16 +652,10 @@ void Mesh<CellType>::make_cell_boundary_cell(int i) {
 
                     // set that boundary true
                     cells[i].edges[j].neighbour->edges[k].is_boundary = true;
-
                 }
-
             }
-
         }
-
-
     }
-
 }
 
 
@@ -651,9 +664,9 @@ void Mesh<CellType>::make_cell_boundary_cell(int i) {
 template <typename CellType>
 void Mesh<CellType>::save_mesh(int file_nr, string name, double dt) {
 
+    // open correct file
     string filename;
     filename = "../src/files/" + name + to_string(file_nr) + ".csv"; 
-
     ofstream output_file(filename);
     
     // get maximum edge number for column correction later on
@@ -685,6 +698,7 @@ void Mesh<CellType>::save_mesh(int file_nr, string name, double dt) {
 
         output_file << "|";
 
+        // store sim time
         output_file << file_nr * dt << ",";
 
         // if cell type is Q_cell or Conway Cell save Q
@@ -741,6 +755,7 @@ void Mesh<CellType>::save_Q_diff(double t, bool reset_file, bool is_density) {
 
 }
 
+
 // function to calculate and store the L1 error of an advecting circle, requires Q_cells
 template <typename CellType>
 void Mesh<CellType>::save_L1_adv_circle(double t, bool reset_file, Point v, Point p0, double r) {
@@ -750,6 +765,7 @@ void Mesh<CellType>::save_L1_adv_circle(double t, bool reset_file, Point v, Poin
     Qs_num.reserve(cells.size());
     Qs_ana.reserve(cells.size());
 
+    // get Q_values for numerical and analytical solution at current timestep
     for (int i = 0; i<cells.size(); i++) {
         Qs_num.push_back(cells[i].Q);
         Qs_ana.push_back(advecting_circle(cells[i].seed, t, v, p0, r));
@@ -763,7 +779,7 @@ void Mesh<CellType>::save_L1_adv_circle(double t, bool reset_file, Point v, Poin
         output_file = ofstream("../src/files/L1_error.csv", ios::app);
     }
 
-    // write caluclated difference in file
+    // write caluclated L1 difference for given time in file
     output_file << t << "," << L1_error(Qs_num, Qs_ana) << endl;
     output_file.close();
 }
@@ -778,6 +794,7 @@ void Mesh<CellType>::save_L1_adv_1Dstepfunc(double t, bool reset_file, double v,
     Qs_num.reserve(cells.size());
     Qs_ana.reserve(cells.size());
 
+    // get Q_values for numerical and analytical solution at current timestep
     for (int i = 0; i<cells.size(); i++) {
         Qs_num.push_back(cells[i].Q);
         Qs_ana.push_back(advecting1D_stepfunc(cells[i].seed, t, v, a0, b0));
@@ -791,10 +808,39 @@ void Mesh<CellType>::save_L1_adv_1Dstepfunc(double t, bool reset_file, double v,
         output_file = ofstream("../src/files/L1_error.csv", ios::app);
     }
 
-    // write caluclated difference in file
+    // write caluclated L1 difference for given time in file
     output_file << t << "," << L1_error(Qs_num, Qs_ana) << endl;
     output_file.close();
 }
+
+// function to calculate and store the L1 error of an advecting circle, requires Q_cells
+template <typename CellType>
+void Mesh<CellType>::save_L1_swe_dam_break(double t, bool reset_file) {
+
+    vector<double> h_num;
+    vector<double> h_ana;
+    h_num.reserve(cells.size());
+    h_ana.reserve(cells.size());
+
+    // get h_values for numerical and analytical solution at current timestep
+    for (int i = 0; i<cells.size(); i++) {
+        h_num.push_back(cells[i].h);
+        h_ana.push_back(swe1D_dam_break(cells[i].seed, t));
+    }
+
+    // open new file or in append mode
+    ofstream output_file;
+    if (reset_file) {
+        output_file = ofstream("../src/files/L1_error.csv");
+    } else {
+        output_file = ofstream("../src/files/L1_error.csv", ios::app);
+    }
+
+    // write caluclated L1 difference for given time in file
+    output_file << t << "," << L1_error(h_num, h_ana) << endl;
+    output_file.close();
+}
+
 
 
 

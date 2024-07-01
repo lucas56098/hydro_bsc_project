@@ -21,9 +21,7 @@ public:
     void diffusion_like(double dt);
     void conway();
     void advection(double dt, Point v);
-    //void shallow_water_1D_cartesian(double dt);
-    //void shallow_water_2D_cartesian(double dt, int boundary_condition = -1); // boundary condition -1 -> reflective, 1-> sink, for repeating boundary change mesh structure
-    void shallow_water_2D(double dt, int boundary_cond = -1, double numerical_diffusion_coeff = 0);
+    void shallow_water(double dt, int boundary_cond = -1, double numerical_diffusion_coeff = 0);
     
 private:
 

@@ -32,13 +32,14 @@ public:
     void initalize_Q_circle(Point p0 = Point(0.5, 0.5), double r = 0.1, double Qval = 1);
     void inialize_boundary_struct(Point p0, double l_x, double l_y);
     void initalize_SWE_gaussian(Point p0 = Point(0.5, 0.5), double A = 1, double sigma = 0.5);
-    void initalize_SWE_dam_break(double h1 = 2.0, double h2 = 1.0, double pos = 0.5);
+    void initalize_SWE_dam_break(double h1 = 2.0, double h2 = 1.0, double pos = 0.5, int dam_break_type = 0);
 
     // save mesh
     void save_mesh(int file_nr, string name, double dt);
     void save_Q_diff(double t, bool reset_file = false, bool is_density = true);
     void save_L1_adv_circle(double t, bool reset_file, Point v = Point(0.5, 0.3), Point p0 = Point(0.5, 0.5), double r = 0.1);
     void save_L1_adv_1Dstepfunc(double t, bool reset_file, double v = 0.5, double a0 = 0, double b0 = 0.1);
+    void save_L1_swe_dam_break(double t, bool reset_file);
 
 
 private:
