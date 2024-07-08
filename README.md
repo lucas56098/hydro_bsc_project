@@ -17,9 +17,9 @@ Reflective boundary conditions:
 
 For the flow of neighbour cell just set 
 
-\[ 
-\begin{bmatrix} \hat{u} \\ \hat{v} \end{bmatrix} = \begin{bmatrix} u \\ v \end{bmatrix} - 2 \cdot (\begin{bmatrix} u \\ v \end{bmatrix} \cdot \vec{n}) \cdot \vec{n}
-\]
+<p align="center">
+  <img src="/figures/image_10.png" alt="6_2D_voronoi_low_res_50" width="30%">
+</p>
 
 with n the normal of the face. This cancels out any flux component through the face, while keeping the flux component parallel to the face.
 
