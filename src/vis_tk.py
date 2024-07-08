@@ -227,7 +227,7 @@ def animation1D(filerange, filenames, labels, sort_option, quantity_index, fps =
             if sort_option == 'y':
                 plt.plot(seed[:, 1], Q[:, quantity_index[i]], label= labels[i])
             elif sort_option == 'x':
-                plt.scatter(seed[:, 0], Q[:, quantity_index[i]], label= labels[i], s=0.8)
+                plt.scatter(seed[:, 0], Q[:, quantity_index[i]], label= labels[i], s=0.9)
             elif sort_option == 'diagonal':
                 # plot a projection onto diagonal here
                 plt.scatter(((1/np.sqrt(2)) * (seed[:, 0] + seed[:, 1])), Q[:, quantity_index[i]], label= labels[i], s=0.8)
@@ -293,7 +293,7 @@ def animation1D(filerange, filenames, labels, sort_option, quantity_index, fps =
                 # plot analytical solution given we now have a way to calculate it
                 lsp = np.linspace(xlim[0], xlim[1], 1000)
                 h_analytic = [get_h_at_t_and_x(x, Q[0, 0], x0, cl, cm, cr, hl, hm, hr, g) for x in lsp]
-                plt.plot(lsp, h_analytic, label = 'analytic', color = 'red')
+                plt.plot(lsp, h_analytic, label = 'analytic', color = 'red', linewidth = 0.5)
 
         # optional title
         if title != '':
@@ -356,7 +356,7 @@ def fit_function(x, a, b):
 
 
 # function to plot L1 error over N
-def plot_L1_error_over_N(filenames, N_list, index = -1):
+def plot_L1_error_over_N(filenames, N_list, index = -1, dataname = "L1 error"):
 
     L1s = []
 
@@ -366,6 +366,9 @@ def plot_L1_error_over_N(filenames, N_list, index = -1):
         L1 = df[1].astype(float).values
         L1s.append(L1[index])
 
+    N_list = np.array(N_list)
+    L1s = np.array(L1s)
+
     # fit 1/x function onto L1 over N data
     popt, pcov = curve_fit(fit_function, N_list, L1s)
     print(popt)
@@ -373,15 +376,15 @@ def plot_L1_error_over_N(filenames, N_list, index = -1):
     # plot result
     lsp = np.linspace(min(N_list), max(N_list), 10)
     plt.plot(lsp, fit_function(lsp, *popt), label = f'f(x) = {popt[0]:.2f}/x^{popt[1]:.2f}', color = 'grey')
-    plt.scatter(N_list, L1s, marker = 'o', label = 'L1-error')
-    plt.title("L1 error over resolution - Vmesh Circle")
+    plt.scatter(N_list, L1s, marker = 'o', label = dataname)
+    plt.title("L1 error over resolution")
     plt.xlabel("N_x")
     plt.ylabel("L1 error")
     plt.xscale('log')
     plt.yscale('log')
     plt.legend()
     plt.savefig("figures/L1_error_over_N.png")
-    plt.show() 
+    #plt.show() 
 
 
 # function to plot difference in total Q over time

@@ -156,7 +156,11 @@ void Mesh<CellType>::generate_grid(bool cartesian, bool is_1D, int N_row, int ll
         }
 
     }
+    for (int i = 0; i<this->cells.size(); i++) {
+        this->cells[i].index = i;
+    }
     cout << "grid generated" << endl;
+    
 
 
 }
@@ -215,6 +219,9 @@ void Mesh<CellType>::generate_uniform_grid2D(Point start, int n_hor, int n_vert,
 
             // push back new cell in cells vector
             cells.emplace_back(seedin, edgesin);
+
+            // set centroid
+            cells[cells.size()-1].centroid = seedin;
 
         }
     }
@@ -332,6 +339,9 @@ void Mesh<CellType>::generate_vmesh2D(vector<Point> pts, int lloyd_iterations, b
 
         // push back new cell in cells
         cells.emplace_back(seedin, edgesin);
+
+        // set centroid
+        cells[i].centroid = vmesh.vcells[i].get_centroid();
 
     }
 
@@ -491,6 +501,8 @@ void Mesh<CellType>::generate_vmesh1D(vector<Point> pts, bool repeating) {
 
         // push back new cell in cells vector
         cells.emplace_back(seedin, edgesin);
+
+        cells[cells.size()-1].centroid = seedin;
 
     }
 

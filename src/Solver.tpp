@@ -32,6 +32,20 @@ Point Solver<CellType>::get_normal_vec(Point a, Point b) {
     return Point(-Delta_y/norm, Delta_x/norm);
 }
 
+// function to rotate a swe vector where [1] and [2] are the velocities to rotate and [0] stays const.
+template <typename CellType>
+array<double, 3> Solver<CellType>::rotate2Dswe(array<double, 3> vec, double angle) {
+
+    array<double, 3> rot_vec = {
+                                    vec[0],
+                                    cos(angle) * vec[1] - sin(angle) * vec[2],
+                                    sin(angle) * vec[1] + cos(angle) * vec[2]
+                               };
+
+    return rot_vec;
+
+}
+
 // SOLVERS (update the Mesh by a single step) -----------------------------------------------------
 // SOLVER: Fake Diffusion--------------------------------------------------------------------------
 // Fake Diffusion Equation as first try, requires Q_cells, Q is a absolute value not a density
@@ -308,7 +322,7 @@ void Solver<CellType>::advection_vmesh(double dt, Point v) {
 // SOLVER: Shallow Water Equations ----------------------------------------------------------------
 // 1st order implementation of shallow water equation 2D voronoi using HLL solver
 template<typename CellType>
-void Solver<CellType>::shallow_water(double dt, int boundary_cond, double numerical_diffusion_coeff) {
+void Solver<CellType>::shallow_water(double dt, int boundary_cond, double numerical_diffusion_coeff, int sim_order, double g) {
 
     // make sure that the cell type is correct
     if constexpr (is_same_v<CellType, SWE_Cell> == false) {
@@ -319,10 +333,20 @@ void Solver<CellType>::shallow_water(double dt, int boundary_cond, double numeri
     vector<array<double, 3>> Q_new;
     Q_new.reserve(grid->cells.size());
 
+    vector<array<array<double, 3>, 2>> gradients;
+    if (sim_order == 2) {
+        // calculate gradients
+        gradients.reserve(grid->cells.size());
+
+        // go through each cell to calculate gradient
+        for (int i = 0; i < grid->cells.size(); i++) {
+            gradients.push_back(calc_swe_gradients(i, boundary_cond, g));
+        }
+    }
+
+
     //go through each cell to calculate the new values
     for (int i = 0; i<grid->cells.size(); i++) {
-
-        //cout << "Cell: " << i << endl;
 
         double A = grid->cells[i].volume;
 
@@ -335,7 +359,6 @@ void Solver<CellType>::shallow_water(double dt, int boundary_cond, double numeri
             
             Point n = get_normal_vec(grid->cells[i].edges[j].a, grid->cells[i].edges[j].b);
             double l_i_j = grid->cells[i].edges[j].length;
-            double g = 1;
 
             // values needed for f and g calculations
             // values of other cell (initalized with sink boundaries for boundary cond = 1)
@@ -353,43 +376,56 @@ void Solver<CellType>::shallow_water(double dt, int boundary_cond, double numeri
                 huv_j_n[2] = grid->cells[i].edges[j].neighbour->get_v();
             }
 
-            // f_i
-            array<double, 3> f_i = {
-                                  huv_i_n[0] * huv_i_n[1],
-                                  huv_i_n[0] * huv_i_n[1] * huv_i_n[1] + (g/2.0) * huv_i_n[0] * huv_i_n[0],
-                                  huv_i_n[0] * huv_i_n[2] * huv_i_n[1]
-                                 };
-            
-            // f_j
-            array<double, 3> f_j = {
-                                  huv_j_n[0] * huv_j_n[1], 
-                                  huv_j_n[0] * huv_j_n[1] * huv_j_n[1] + (g/2.0) * huv_j_n[0] * huv_j_n[0], 
-                                  huv_j_n[0] * huv_j_n[2] * huv_j_n[1]
-                                 };
-            
-            // g_i
-            array<double, 3> g_i = {
-                                  huv_i_n[0] * huv_i_n[2], 
-                                  huv_i_n[0] * huv_i_n[2] * huv_i_n[1], 
-                                  huv_i_n[0] * huv_i_n[2] * huv_i_n[2] + (g/2.0) * huv_i_n[0] * huv_i_n[0]
-                                     };
-            // g_j
-            array<double, 3> g_j = {
-                                  huv_j_n[0] * huv_j_n[2], 
-                                  huv_j_n[0] * huv_j_n[2] * huv_j_n[1], 
-                                  huv_j_n[0] * huv_j_n[2] * huv_j_n[2] + (g/2.0) * huv_j_n[0] * huv_j_n[0]
-                                 };
+            array<double, 3> F_ij = {0.0, 0.0, 0.0};
 
-            // Flux Estimation using Roe approximate Riemann Solver
-            array<double, 3> F_eff;
+            if (sim_order == 1) {
+                // get Flux using a HLL solver (first order)
+                F_ij = hll_solver_swe_2D(huv_i_n, huv_j_n, g, n, numerical_diffusion_coeff);
+            } else if (sim_order == 2) {
+                // extrapolate values
+                // extrapolate U_i
+                array<double, 3> huv_i_ext = linear_extrapolate_swe(huv_i_n, gradients[i], dt, i, j, g);
 
-            // get effective Flux using a split scheme HLL solver
-            F_eff = hll_solver_swe_2D(huv_i_n, huv_j_n, f_i, f_j, g_i, g_j, g, n, numerical_diffusion_coeff);
+                // if j not boundary extrapolate U_j
+                array<double, 3> huv_j_ext = {0.0, 0.0, 0.0};
+                if (grid->cells[i].edges[j].is_boundary == false) {
+                    // extrapolate U_j
+
+                    // index_j is the index of the Cell_j in the cell list
+                    int index_j = grid->cells[i].edges[j].neighbour->index;
+                    // index_i is the neighbour index of Cell_i inside of Cell_j
+                    int index_i;
+
+                    // get index_i by looping through all edges of Cell_j
+                    for (int k = 0; k < grid->cells[index_j].edges.size(); k++) {
+                        if (grid->cells[index_j].edges[k].is_boundary == false) {
+                            if (grid->cells[index_j].edges[k].neighbour->index == i) {
+                                index_i = k;
+                            }
+                        }
+                    }
+                    
+                    huv_j_ext = linear_extrapolate_swe(huv_j_n, gradients[index_j], dt, index_j, index_i, g);
+                // else U_j according to boundary conditions
+                } else {
+                    huv_j_ext = {huv_i_ext[0], boundary_cond*huv_i_ext[1], boundary_cond*huv_i_ext[2]};
+
+                    if (boundary_cond == -1) {
+                        huv_j_ext[1] = huv_i_ext[1] - 2*(huv_i_ext[1]*n.x + huv_i_ext[2]*n.y)*n.x;
+                        huv_j_ext[2] = huv_i_ext[2] - 2*(huv_i_ext[1]*n.x + huv_i_ext[2]*n.y)*n.y;
+                    }
+                }
+
+                // do HLL with extrapolated values to get Flux
+                F_ij = hll_solver_swe_2D(huv_i_ext, huv_j_ext, g, n, numerical_diffusion_coeff);
+            } else {
+                cerr << "no such simulation order allowed!, choose sim_order = 1 or = 2" << endl;
+            }
 
             // add to total flux * length
-            total_flux[0] += F_eff[0] * l_i_j;
-            total_flux[1] += F_eff[1] * l_i_j;
-            total_flux[2] += F_eff[2] * l_i_j;
+            total_flux[0] += F_ij[0] * l_i_j;
+            total_flux[1] += F_ij[1] * l_i_j;
+            total_flux[2] += F_ij[2] * l_i_j;
         }
 
         // calculate new values
@@ -438,89 +474,263 @@ array<double, 3> Solver<CellType>::roe_solver_swe_2D(array<double, 3> huv_i_n, a
 }
 
 
-
-// CONSTRUCTION SITE: -----------------------------------------------------------------------------
 // HLL Solver for Shallow Water Equation 2D unstructured
 template <typename CellType>
-array<double, 3> Solver<CellType>::hll_solver_swe_2D(array<double, 3> huv_i_n, array<double, 3> huv_j_n, array<double, 3> f_i, array<double, 3> f_j, array<double, 3> g_i, array<double, 3> g_j, double g, Point n, double add_diffusion_coeff) {
+array<double, 3> Solver<CellType>::hll_solver_swe_2D(array<double, 3> huv_i_n, array<double, 3> huv_j_n, double g, Point n, double add_diffusion_coeff) {
     
-    // solves Riemann problem in a split scheme
-    // start with x direction and flux F
+    // rotate huv_i, huv_j into n-frame
+    double theta = atan2(n.y, n.x);
+    array<double, 3> huv_l = rotate2Dswe(huv_i_n, theta);
+    array<double, 3> huv_r = rotate2Dswe(huv_j_n, theta);
 
-    // make sure that left and right state are chosen correct for F
-    array<double, 3> huv_l_n;
-    array<double, 3> huv_r_n; 
-    array<double, 3> f_l; 
-    array<double, 3> f_r;
-    if (n.x > 0) {
-        huv_l_n = huv_i_n;
-        huv_r_n = huv_j_n;
-        f_l = f_i;
-        f_r = f_j;
-    } else {
-        huv_l_n = huv_j_n;
-        huv_r_n = huv_i_n;
-        f_l = f_j;
-        f_r = f_i;
-    }
-    
+    // using huv_l, huv_r (the rotated ones) now calc F_HLLn using HLL solver
+    // calc f_l and f_r
+    array<double, 3> f_l = {
+                                huv_l[0] * huv_l[1],
+                                huv_l[0]*huv_l[1]*huv_l[1] + (g/2.0) * huv_l[0] * huv_l[0],
+                                huv_l[0] * huv_l[1] * huv_l[2]
+                           };
+
+    array<double, 3> f_r = {
+                                huv_r[0] * huv_r[1],
+                                huv_r[0]*huv_r[1]*huv_r[1] + (g/2.0) * huv_r[0] * huv_r[0],
+                                huv_r[0] * huv_r[1] * huv_r[2]
+                           };
+
     // calculate wave speeds
-    double SLF = min(huv_l_n[1] - sqrt(g*huv_l_n[0]), huv_r_n[1] - sqrt(g*huv_r_n[0]));
-    double SRF = max(huv_r_n[1] + sqrt(g*huv_r_n[0]), huv_l_n[1] + sqrt(g*huv_l_n[0]));
+    double SL = min(huv_l[1] - sqrt(g*huv_l[0]), huv_r[1] - sqrt(g*huv_r[0]));
+    double SR = max(huv_r[1] + sqrt(g*huv_r[0]), huv_l[1] + sqrt(g*huv_l[0]));
 
     // HLL solver for F
-    array<double, 3> F_HLL;
-    if (SLF >= 0) {
-        F_HLL = f_l;
-    } else if (SLF < 0 && SRF > 0) {
-        F_HLL[0] = (SRF * f_l[0] - SLF * f_r[0] + SLF * SRF * (huv_r_n[0] - huv_l_n[0])) / (SRF - SLF);
-        F_HLL[1] = (SRF * f_l[1] - SLF * f_r[1] + SLF * SRF * (huv_r_n[0] * huv_r_n[1] - huv_l_n[0] * huv_l_n[1])) / (SRF - SLF);
-        F_HLL[2] = (SRF * f_l[2] - SLF * f_r[2] + SLF * SRF * (huv_r_n[0] * huv_r_n[2] - huv_l_n[0] * huv_l_n[2])) / (SRF - SLF);
-    } else if (SRF <= 0) {
-        F_HLL = f_r;
+    array<double, 3> F_HLL_n;
+    if (SL >= 0) {
+        F_HLL_n = f_l;
+    } else if (SL < 0 && SR > 0) {
+        F_HLL_n[0] = (SR * f_l[0] - SL * f_r[0] + SL * SR * (huv_r[0] - huv_l[0])) / (SR - SL);
+        F_HLL_n[1] = (SR * f_l[1] - SL * f_r[1] + SL * SR * (huv_r[0] * huv_r[1] - huv_l[0] * huv_l[1])) / (SR - SL);
+        F_HLL_n[2] = (SR * f_l[2] - SL * f_r[2] + SL * SR * (huv_r[0] * huv_r[2] - huv_l[0] * huv_l[2])) / (SR - SL);
+    } else if (SR <= 0) {
+        F_HLL_n = f_r;
     }
 
-    // now solve Riemann problem in y direction for flux G
-    // make sure that left and right state are chosen correct for G
-    array<double, 3> g_l;
-    array<double, 3> g_r;
-    if (n.y > 0) {
-        huv_l_n = huv_i_n;
-        huv_r_n = huv_j_n;
-        g_l = g_i;
-        g_r = g_j;
-    } else {
-        huv_l_n = huv_j_n;
-        huv_r_n = huv_i_n;
-        g_l = g_j;
-        g_r = g_i;
-    }
+    // get F_HLL by rotating F_HLLn back into lab frame
+    array<double, 3> F_HLL = rotate2Dswe(F_HLL_n, -theta);
+    
+    // optional additional diffusion
+    F_HLL[0] += - add_diffusion_coeff * (huv_l[0] - huv_r[0]);
+    F_HLL[1] += - add_diffusion_coeff * (huv_l[0] * huv_l[1] - huv_r[0] * huv_r[1]);
+    F_HLL[2] += - add_diffusion_coeff * (huv_l[0] * huv_l[2] - huv_r[0] * huv_r[2]);
 
-    // calculate wave speeds
-    double SLG = min(huv_l_n[1] - sqrt(g*huv_l_n[0]), huv_r_n[1] - sqrt(g*huv_r_n[0]));
-    double SRG = max(huv_r_n[1] + sqrt(g*huv_r_n[0]), huv_l_n[1] + sqrt(g*huv_l_n[0]));
-
-    // HLL Solver for G
-    array<double, 3> G_HLL;
-    if (SLG >= 0) {
-        G_HLL = g_l;
-    } else if (SLG < 0 && SRG > 0) {
-        G_HLL[0] = (SRG * g_l[0] - SLG * g_r[0] + SLG * SRG * (huv_r_n[0] - huv_l_n[0])) / (SRG - SLG);
-        G_HLL[1] = (SRG * g_l[1] - SLG * g_r[1] + SLG * SRG * (huv_r_n[0] * huv_r_n[1] - huv_l_n[0] * huv_l_n[1])) / (SRG - SLG);
-        G_HLL[2] = (SRG * g_l[2] - SLG * g_r[2] + SLG * SRG * (huv_r_n[0] * huv_r_n[2] - huv_l_n[0] * huv_l_n[2])) / (SRG - SLG);
-    } else if (SRG <= 0) {
-        G_HLL = g_r;
-    }
-
-    // now combine split scheme + optional additional diffusion (not needed normally)
-    array<double, 3> F_eff = {
-        (F_HLL[0]*n.x + G_HLL[0]*n.y) - add_diffusion_coeff * (huv_l_n[0] - huv_r_n[0]),
-        (F_HLL[1]*n.x + G_HLL[1]*n.y) - add_diffusion_coeff * (huv_l_n[0] * huv_l_n[1] - huv_r_n[0] * huv_r_n[1]),
-        (F_HLL[2]*n.x + G_HLL[2]*n.y) - add_diffusion_coeff * (huv_l_n[0] * huv_l_n[2] - huv_r_n[0] * huv_r_n[2])
-    };
-
-    return F_eff;
+    return F_HLL;
 }
+
+
+// GRADIENTS AND EXTRAPOLATION --------------------------------------------------------------------
+template <typename CellType>
+array<array<double, 3>, 2> Solver<CellType>::calc_swe_gradients(int i, int boundary_cond, double g) {
+
+    double A = grid->cells[i].volume;
+    array<double, 3> huv_i_n = {grid->cells[i].h, grid->cells[i].u, grid->cells[i].v};
+
+    array<array<double, 3>, 2> gradientU;
+    gradientU[0] = {0.0, 0.0, 0.0};
+    gradientU[1] = {0.0, 0.0, 0.0};
+
+    // go through all edges
+    for (int j = 0; j < grid->cells[i].edges.size(); j++) {
+            
+        Point n = get_normal_vec(grid->cells[i].edges[j].a, grid->cells[i].edges[j].b);
+        double l_i_j = grid->cells[i].edges[j].length;
+
+        // values of other cell (initalized with sink boundaries for boundary cond = 1)
+        array<double, 3> huv_j_n = {huv_i_n[0], boundary_cond * huv_i_n[1],  boundary_cond * huv_i_n[2]};
+        // if reflective boundary change velocities accordingly
+        if (boundary_cond == -1) {
+            huv_j_n[1] = huv_i_n[1] - 2*(huv_i_n[1]*n.x + huv_i_n[2]*n.y)*n.x;
+            huv_j_n[2] = huv_i_n[2] - 2*(huv_i_n[1]*n.x + huv_i_n[2]*n.y)*n.y;
+        }
+        // get actual huv values if its not a boundary
+        if (grid->cells[i].edges[j].is_boundary == false) {
+            huv_j_n[0] = grid->cells[i].edges[j].neighbour->get_h();
+            huv_j_n[1] = grid->cells[i].edges[j].neighbour->get_u();
+            huv_j_n[2] = grid->cells[i].edges[j].neighbour->get_v();
+        }
+
+        // get c_ij and |r_i_j|
+        Point f_mid = Point((grid->cells[i].edges[j].a.x + grid->cells[i].edges[j].b.x)/2.0, (grid->cells[i].edges[j].a.y + grid->cells[i].edges[j].b.y)/2.0);
+        Point r_i = grid->cells[i].seed;
+        Point mid = Point(f_mid.x - r_i.x, f_mid.y - r_i.y);
+
+
+        double r_ij = 2 * (mid.x * n.x + mid.y * n.y);
+        Point c_ij = Point(
+                            mid.x - 0.5*r_ij*n.x,
+                            mid.y - 0.5*r_ij*n.y
+                          );
+
+
+        // add to sum of gradient
+        gradientU[0][0] += (l_i_j/A) * (((huv_i_n[0] + huv_j_n[0])/2.0)*n.x + (huv_j_n[0] - huv_i_n[0]) * (c_ij.x/r_ij));
+        gradientU[0][1] += (l_i_j/A) * (((huv_i_n[0]*huv_i_n[1] + huv_j_n[0]*huv_j_n[1])/2.0)*n.x + (huv_j_n[0]*huv_j_n[1] - huv_i_n[0]*huv_i_n[1]) * (c_ij.x/r_ij));
+        gradientU[0][2] += (l_i_j/A) * (((huv_i_n[0]*huv_i_n[2] + huv_j_n[0]*huv_j_n[2])/2.0)*n.x + (huv_j_n[0]*huv_j_n[2] - huv_i_n[0]*huv_i_n[2]) * (c_ij.x/r_ij));
+
+        gradientU[1][0] += (l_i_j/A) * (((huv_i_n[0] + huv_j_n[0])/2.0)*n.y + (huv_j_n[0] - huv_i_n[0]) * (c_ij.y/r_ij));
+        gradientU[1][1] += (l_i_j/A) * (((huv_i_n[0]*huv_i_n[1] + huv_j_n[0]*huv_j_n[1])/2.0)*n.y + (huv_j_n[0]*huv_j_n[1] - huv_i_n[0]*huv_i_n[1]) * (c_ij.y/r_ij));
+        gradientU[1][2] += (l_i_j/A) * (((huv_i_n[0]*huv_i_n[2] + huv_j_n[0]*huv_j_n[2])/2.0)*n.y + (huv_j_n[0]*huv_j_n[2] - huv_i_n[0]*huv_i_n[2]) * (c_ij.y/r_ij));
+
+    }
+    
+    // slope limiting
+    // initalize a_i
+    array<double, 3> a_i = {1.0, 1.0, 1.0};
+    array<double, 3> U_i = {
+                            huv_i_n[0],
+                            huv_i_n[0] * huv_i_n[1],
+                            huv_i_n[0] * huv_i_n[2]
+                         };
+
+    // go through all edges to calculate correct a_i
+    for (int j=0; j<grid->cells[i].edges.size(); j++) {
+        // calculate delta_ij
+        array<double, 3> delta_ij;
+        Point f_mid = Point((grid->cells[i].edges[j].a.x + grid->cells[i].edges[j].b.x)/2.0, (grid->cells[i].edges[j].a.y + grid->cells[i].edges[j].b.y)/2.0);
+        Point centroid = grid->cells[i].centroid;
+        Point n = get_normal_vec(grid->cells[i].edges[j].a, grid->cells[i].edges[j].b);
+
+        for (int k = 0; k < 3; k++) {
+            delta_ij[k] = gradientU[0][k] * (f_mid.x - centroid.x) + gradientU[1][k] * (f_mid.y - centroid.y);
+        }
+
+        // calcualte psi_ij
+        array<double, 3> psi_ij;
+
+        for (int k = 0; k < 3; k++) {
+            if (delta_ij[k] > 0) {
+                // (psi_max - psi_i)/delta_psi_ij
+                double psi_max = U_i[k];
+                // loop through all edges to maximise psi
+                for (int l = 0; l < grid->cells[i].edges.size(); l++) {
+                    
+                    // values of other cell (initalized with sink boundaries for boundary cond = 1)
+                    array<double, 3> huv_j_n = {huv_i_n[0], boundary_cond * huv_i_n[1],  boundary_cond * huv_i_n[2]};
+                    // if reflective boundary change velocities accordingly
+                    if (boundary_cond == -1) {
+                        huv_j_n[1] = huv_i_n[1] - 2*(huv_i_n[1]*n.x + huv_i_n[2]*n.y)*n.x;
+                        huv_j_n[2] = huv_i_n[2] - 2*(huv_i_n[1]*n.x + huv_i_n[2]*n.y)*n.y;
+                    }
+                    // get actual huv values if its not a boundary
+                    if (grid->cells[i].edges[l].is_boundary == false) {
+                        huv_j_n[0] = grid->cells[i].edges[l].neighbour->get_h();
+                        huv_j_n[1] = grid->cells[i].edges[l].neighbour->get_u();
+                        huv_j_n[2] = grid->cells[i].edges[l].neighbour->get_v();
+                    }
+
+                    array<double, 3> U_j = {
+                                                huv_j_n[0],
+                                                huv_j_n[0] * huv_j_n[1],
+                                                huv_j_n[0] * huv_j_n[2],
+                                           };
+
+                    // actually maximise
+                    if (U_j[k] > psi_max) {psi_max = U_j[k];}
+
+                } 
+
+                psi_ij[k] = (psi_max - U_i[k])/delta_ij[k];
+
+
+            } else if (delta_ij[k] < 0) {
+                // (psi_min - psi_i)/delta_psi_ij
+                double psi_min = U_i[k];
+
+                // loop through all edges to minimze psi
+                for (int l = 0; l < grid->cells[i].edges.size(); l++) {
+                    
+                    // values of other cell (initalized with sink boundaries for boundary cond = 1)
+                    array<double, 3> huv_j_n = {huv_i_n[0], boundary_cond * huv_i_n[1],  boundary_cond * huv_i_n[2]};
+                    // if reflective boundary change velocities accordingly
+                    if (boundary_cond == -1) {
+                        huv_j_n[1] = huv_i_n[1] - 2*(huv_i_n[1]*n.x + huv_i_n[2]*n.y)*n.x;
+                        huv_j_n[2] = huv_i_n[2] - 2*(huv_i_n[1]*n.x + huv_i_n[2]*n.y)*n.y;
+                    }
+                    // get actual huv values if its not a boundary
+                    if (grid->cells[i].edges[l].is_boundary == false) {
+                        huv_j_n[0] = grid->cells[i].edges[l].neighbour->get_h();
+                        huv_j_n[1] = grid->cells[i].edges[l].neighbour->get_u();
+                        huv_j_n[2] = grid->cells[i].edges[l].neighbour->get_v();
+                    }
+
+                    array<double, 3> U_j = {
+                                                huv_j_n[0],
+                                                huv_j_n[0] * huv_j_n[1],
+                                                huv_j_n[0] * huv_j_n[2],
+                                           };
+
+                    // actually minimize
+                    if (U_j[k] < psi_min) {psi_min = U_j[k];}
+
+                } 
+
+                psi_ij[k] = (psi_min - U_i[k])/delta_ij[k];
+
+            } else if (delta_ij[k] == 0) {
+                psi_ij[k] = 1;
+            }
+        }
+
+        // update a_i (e.g. minimizing a_i = min_{over j}(1, psi_ij))
+        for (int k = 0; k < 3; k++) {
+            if (psi_ij[k] < a_i[k]) {a_i[k] = psi_ij[k];}
+        }
+    }
+    
+    // apply slope limiters
+    gradientU[0][0] = a_i [0] * gradientU[0][0];
+    gradientU[1][0] = a_i [0] * gradientU[1][0];
+    gradientU[0][1] = a_i [1] * gradientU[0][1];
+    gradientU[1][1] = a_i [1] * gradientU[1][1];
+    gradientU[0][2] = a_i [2] * gradientU[0][2];
+    gradientU[1][2] = a_i [2] * gradientU[1][2];
+    
+    // return gradient which now can be used to extrapolate the values
+    return gradientU;
+}
+
+template <typename CellType>
+array<double, 3> Solver<CellType>::linear_extrapolate_swe(array<double, 3> huv_i_n, array<array<double, 3>, 2> gradient, double dt, int i, int j, double g) {
+
+    // U_i
+    double h = huv_i_n[0];
+    double u = huv_i_n[1];
+    double v = huv_i_n[2];
+    array<double, 3> U_i = {
+                                h,
+                                h*u,
+                                h*v
+                           };
+
+    // d
+    Point f_mid = Point((grid->cells[i].edges[j].a.x + grid->cells[i].edges[j].b.x)/2.0, (grid->cells[i].edges[j].a.y + grid->cells[i].edges[j].b.y)/2.0);
+    Point centroid = grid->cells[i].centroid;
+    Point d = Point(f_mid.x - centroid.x, f_mid.y - centroid.y);
+
+    // U_i_ext
+    array<double, 3> U_i_ext = {
+                                    U_i[0] + (d.x*gradient[0][0] - (dt/2.0)*(gradient[0][1])) + (d.y*gradient[1][0] - (dt/2.0)*(gradient[1][2])),
+                                    U_i[1] + (d.x*gradient[0][1] - (dt/2.0)*((g*h - u*u)*gradient[0][0] + (2*u)*gradient[0][1])) + (d.y*gradient[1][1] - (dt/2.0)*((-1*u*v)*gradient[1][0] + (v)*gradient[1][1] + (u)*gradient[1][2])),
+                                    U_i[2] + (d.x*gradient[0][2] - (dt/2.0)*((-1*u*v)*gradient[0][0] + (v)*gradient[0][1] + (u)*gradient[0][2])) + (d.y*gradient[1][0] - (dt/2.0)*((g*h - v*v)*gradient[1][0] + (2*v)* gradient[1][2]))
+                               };
+
+    // huv_i_ext;
+    array<double, 3> huv_i_ext;
+    huv_i_ext[0] = U_i_ext[0];
+    huv_i_ext[1] = U_i_ext[1]/U_i_ext[0];
+    huv_i_ext[2] = U_i_ext[2]/U_i_ext[0];
+
+    return huv_i_ext;
+}
+
+
 
 template <typename CellType>
 Solver<CellType>::~Solver() {};

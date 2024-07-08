@@ -8,6 +8,8 @@ project to eventually do hydrodynamics on different meshes, with maybe different
 - verification of HLL for dam break (diagonal/normal, voronoi/cartesian)
 - verification of HLL for other initial conditions
 
+- MUSCL scheme (work in progress)
+
 ---
 ### Another look at boundary conditions
 
@@ -76,10 +78,83 @@ With this solver we could counter check basically any inital condition. Lets tak
 For low resolution and same N the solutions differ with regard to numerical diffusion (left) which is more or less expected since we use different solvers. For higher resultion (e.g. N = 1000, right) the **solutions converge to each other**. 
 
 ---
-### Second Order (MUSCL)
-next step i guess
+### Second Order? (MUSCL)
+
+Tried to implement second order muscl scheme following [arepo paper](https://wwwmpa.mpa-garching.mpg.de/~volker/arepo/arepo_paper.pdf) and Fundamentals of Simulation Methods script.
+
+<p align='center'>
+  <img src="/figures/image0.png" alt="6_2D_voronoi_low_res_50" width="45%">
+</p>
+
+
+We start by calculating the gradients for all components $\phi$ of $\vec{U}$.
+
+<p align='center'>
+  <img src="/figures/image2.png" alt="6_2D_voronoi_low_res_50" width="45%">
+</p>
+
+to those we apply slope limiters according to
+
+<p align='center'>
+  <img src="/figures/image3.png" alt="6_2D_voronoi_low_res_50" width="60%">
+</p>
+
+and then use the slope limited gradients to linearly extrapolate to the cell boundary (accounting also for half a time step).
+
+<p align='center'>
+  <img src="/figures/image1.png" alt="6_2D_voronoi_low_res_50" width="45%">
+</p>
+
+finally we use these states and our HLL Riemann solver to obtain an updated $U_i^{(n+1)}$
+
+<p align='center'>
+  <img src="/figures/image4.png" alt="6_2D_voronoi_low_res_50" width="33%">
+</p>
+
+---
+
+### 1D cartesian 1st order against 2nd order scheme
+
+First of all one can see that the 2nd-order approach is way more accurate (by roughly a magnitude) then the 1st-order approach. The L1-error also scales better but both algorithms apparently fail to provide real 1st or 2nd order scaling?? Reasons for that? 
+
+<p align='center'>
+  <img src="/figures/9first_second_order_dam_break.gif" alt="6_2D_voronoi_low_res_50" width="45%">
+  <img src="/figures/9L1_error_over_N_problematic.png" alt="6_2D_voronoi_low_res_50" width="45%">
+</p>
+
+---
+
+Here just to compare a version without the flux limiter.
+
+<p align='center'>
+  <img src="/figures/9second_order_flux_limiter.gif" alt="6_2D_voronoi_low_res_50" width="45%">
+</p>
+
+---
+### still problems in 2D voronoi?
+don't know the error yet
+
+<p align='center'>
+  <img src="/figures/9second_order_vmesh_cmesh.gif" alt="6_2D_voronoi_low_res_50" width="45%">
+  <img src="/figures/9wierd_stuff_because_flux_limiter_not_tvd.gif" alt="6_2D_voronoi_low_res_50" width="45%">
+</p>
+
+---
+
+### cartesian 2D example
+
+Here one can see that at same grid resolution the 2nd order algorithm is way more accurate. But i wouldn't trust this result here as well until the problem for 2D voronoi is found
+
+<p align='center'>
+  <img src="/figures/91st_order_2D_cartesian.gif" alt="6_2D_voronoi_low_res_50" width="45%">
+  <img src="/figures/92nd_order_2D_cartesian.gif" alt="6_2D_voronoi_low_res_50" width="45%">
+</p>
 
 ---
 ### todo
-next weeks:
-- switch to euler equations and implement a muscl scheme there with hllc solver
+- get 2D to work (probably a bug fix somewhere)
+- solve scaling issues (How?)
+- code cleanup
+- then move on to euler
+
+Because of exam preperation i won't be able to do much work in the next two weeks. I suggest we skip next week since i wont have enough progress by then. The week after that i have an exam somewhere tuesday morning. Think its best to just continue working on project after that.
