@@ -378,6 +378,8 @@ void Mesh<CellType>::generate_vmesh2D(vector<Point> pts, int lloyd_iterations, b
             // redo scaling for seed and volume
             cells[i].seed.x = (cells[i].seed.x - 1.0/3.0) * 3.0;
             cells[i].seed.y = (cells[i].seed.y - 1.0/3.0) * 3.0;
+            cells[i].centroid.x = (cells[i].centroid.x - 1.0/3.0) * 3.0;
+            cells[i].centroid.y = (cells[i].centroid.y - 1.0/3.0) * 3.0;
             cells[i].volume = cells[i].volume * 3.0 * 3.0;
 
             // loop through all faces
@@ -591,11 +593,14 @@ void Mesh<CellType>::initalize_SWE_dam_break(double h1, double h2, double pos, i
         // dam break in x direction
         if (dam_break_type == 0) {
             set_values = (cells[i].seed.x <= pos);
-        // dam break in diagonal direction
+        // dam break in y direction
         } else if (dam_break_type == 1) {
+            set_values = (cells[i].seed.y <= pos);
+        // dam break in diagonal direction
+        } else if (dam_break_type == 2) {
             set_values = (cells[i].seed.y + cells[i].seed.x  <= 2*pos);
         // circular dam break
-        } else if (dam_break_type == 2) {
+        } else if (dam_break_type == 3) {
             set_values = (sqrt(cells[i].seed.y*cells[i].seed.y + cells[i].seed.x*cells[i].seed.x)  <= pos);
         }
 

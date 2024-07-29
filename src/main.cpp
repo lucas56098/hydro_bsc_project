@@ -17,16 +17,16 @@ int main () {
     // SPECIFICATIONS -------------------------------------
     // grid
     bool cartesian = true;
-    string file_name = cartesian ? "cmesh0" : "vmesh";
+    string file_name = cartesian ? "cmesh" : "vmesh";
     bool is_1D = true; 
     bool is_repeating = false;
-    int N_row = 10*25; // total cells = N^dimension
+    int N_row = 10*5*2*2*2*2*2*2*2*2;//10*5*2*2*2*2*2*2*2*2*2*2*2;//10*5; // total cells = N^dimension
 
     // simulaiton
-    int sim_steps = 10*25;
-    double total_sim_time = 0.35;
+    int sim_steps = 10*5*2*2*2*2*2*2*2*2;//10*5*2*2*2*2*2*2*2*2*2*2*2;//10*4*100;
+    double total_sim_time = 0.3;//0.35*3;
     double dt = static_cast<double>(total_sim_time)/static_cast<double>(sim_steps);
-    int save_iter = 1*2;
+    int save_iter = 10*5*2*2*2;//10*5*2*2*2*2;
 
     // GRID GENERATION ------------------------------------
     Mesh<SWE_Cell> grid;
@@ -41,10 +41,10 @@ int main () {
     //grid.save_L1_adv_1Dstepfunc(0, true, 0.5, 0, 0.1);
     
     // initial conditions for SWE - - - - - - - - - - - - - 
-    grid.initalize_SWE_dam_break(2.0, 1.0, 0.5, 0);
-    //grid.initalize_SWE_gaussian(Point(0.5, 0.5), 1, 0.1);
-    //grid.initalize_SWE_gaussian(Point(0.7, 0.5), 1, 0.05);
-    //grid.initalize_SWE_gaussian(Point(0.8, 0.1), 1, 0.05);
+    //grid.initalize_SWE_dam_break(2.0, 1.0, 0.5, 0);
+    grid.initalize_SWE_gaussian(Point(0.5, 0.5), 0.5, 0.2);
+    //grid.initalize_SWE_gaussian(Point(0.75, 0.25), 1, 0.05);
+    //grid.initalize_SWE_gaussian(Point(0.2, 0.5), 1, 0.05);
     grid.save_L1_swe_dam_break(0, true);
     
 
@@ -82,7 +82,7 @@ int main () {
         //solver.diffusion_like(dt);
         //solver.conway();
         //solver.advection(dt, Point(0.5/sqrt(2), 0.5/sqrt(2)));
-        solver.shallow_water(dt, 1, 0, 2);
+        solver.shallow_water(dt, -1, 0, 2);
     }
 
     cout << "done" << endl;

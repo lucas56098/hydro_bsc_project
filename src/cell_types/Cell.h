@@ -28,8 +28,10 @@ public:
     ~Cell();
 
     Point seed;
+    Point centroid;
     vector<face> edges;
     double volume;
+    int index;
 
     virtual double getQ() const {
         throw runtime_error("Q is not defined for base Cell");

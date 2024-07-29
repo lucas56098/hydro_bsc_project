@@ -76,8 +76,8 @@ def plot_2D(polygons, Q, cmap = 'viridis', vmin = 0, vmax = 1, edgecolor = 'face
     
     # add collection to axis and set axis options
     ax.add_collection(collection)
-    ax.set_xlim(0, 1)
-    ax.set_ylim(0, 1)
+    ax.set_xlim(-0.1, 1.1)
+    ax.set_ylim(-0.1, 1.1)
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
 
@@ -221,17 +221,17 @@ def animation1D(filerange, filenames, labels, sort_option, quantity_index, fps =
         for i in range(len(filenames)):
 
             # load file
-            seed, polygons, Q = process_file("files/" + filenames[i] + str(frame) + ".csv", sort_option)
+            seed, polygons, Q = process_file("files/" + filenames[i] + str(frame) + ".csv", sort_option[i])
 
             # sort and plot by x, y, diagonal or filterd diagonal
-            if sort_option == 'y':
-                plt.plot(seed[:, 1], Q[:, quantity_index[i]], label= labels[i])
-            elif sort_option == 'x':
-                plt.scatter(seed[:, 0], Q[:, quantity_index[i]], label= labels[i], s=0.9)
-            elif sort_option == 'diagonal':
+            if sort_option[i] == 'y':
+                plt.scatter(seed[:, 1], Q[:, quantity_index[i]], label= labels[i], s=0.9)
+            elif sort_option[i] == 'x':
+                plt.scatter(seed[:, 0], Q[:, quantity_index[i]], label= labels[i], s=2)
+            elif sort_option[i] == 'diagonal':
                 # plot a projection onto diagonal here
                 plt.scatter(((1/np.sqrt(2)) * (seed[:, 0] + seed[:, 1])), Q[:, quantity_index[i]], label= labels[i], s=0.8)
-            elif sort_option == 'diagonal_filter':
+            elif sort_option[i] == 'diagonal_filter':
                 # calculate distance of points to diagonal
                 distance_to_diagonal = np.abs(seed[:, 0] - seed[:, 1]) / np.sqrt(2)
                 
@@ -350,33 +350,60 @@ def plot_L1_error_over_time(filenames = ["L1_error"], labels = ["L1_error"], tit
     plt.show() 
 
 
+# get relative to a "analytic" high res solution the L1 error
+def get_L1_rel(analytic, test):
+
+    sa, pa, qa = process_file("files/" + analytic + ".csv", "x")
+    s, p, q = process_file("files/" + test + ".csv", "x")
+
+    h_ana = qa[:, 1]
+    h_test = q[:, 1]
+
+    nr = int(np.log(len(h_ana)/len(h_test))/np.log(2))
+    
+    for i in range(nr):
+        h_ana = np.mean(h_ana.reshape(-1, 2), axis = 1)
+
+    return np.sum(np.abs(h_ana-h_test))/len(h_test)
+
+
 # a/x^b fit function for L1 convergence over N
 def fit_function(x, a, b):
-    return a/x**b
+    return a*x+b
 
 
 # function to plot L1 error over N
-def plot_L1_error_over_N(filenames, N_list, index = -1, dataname = "L1 error"):
+def plot_L1_error_over_N(filenames, N_list, index = -1, dataname = "L1 error", relative_path = "", only_first_two = False):
 
     L1s = []
 
-    # for all files store L1 at given index in L1s list
-    for i in range(len(filenames)):
-        df = pd.read_csv('files/' + filenames[i] + '.csv', decimal = ',', header=None)
-        L1 = df[1].astype(float).values
-        L1s.append(L1[index])
+    if relative_path == "":
+        # for all files store L1 at given index in L1s list
+        for i in range(len(filenames)):
+            df = pd.read_csv('files/' + filenames[i] + '.csv', decimal = ',', header=None)
+            L1 = df[1].astype(float).values
+            L1s.append(L1[index])
+    else:
+        for i in range(len(filenames)):
+            L1s.append(get_L1_rel(relative_path, filenames[i]))
 
     N_list = np.array(N_list)
     L1s = np.array(L1s)
 
     # fit 1/x function onto L1 over N data
-    popt, pcov = curve_fit(fit_function, N_list, L1s)
+    x = N_list
+    y = L1s
+    lsp = np.linspace(min(np.log(x)), max(np.log(x)), 10)
+    if only_first_two:
+        lsp = np.linspace(min(np.log(x[0:4])), max(np.log(x[0:4])), 10)
+        x = x[0:2]
+        y = y[0:2]
+    popt, pcov = curve_fit(fit_function, np.log(x), np.log(y))
     print(popt)
 
     # plot result
-    lsp = np.linspace(min(N_list), max(N_list), 10)
-    plt.plot(lsp, fit_function(lsp, *popt), label = f'f(x) = {popt[0]:.2f}/x^{popt[1]:.2f}', color = 'grey')
-    plt.scatter(N_list, L1s, marker = 'o', label = dataname)
+    plt.scatter(N_list, L1s, marker = 'o', label = dataname + f" order: {np.abs(popt[0]):.2f}")
+    plt.plot(np.exp(lsp), np.exp(fit_function(lsp, *popt)), color = 'grey')
     plt.title("L1 error over resolution")
     plt.xlabel("N_x")
     plt.ylabel("L1 error")
