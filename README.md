@@ -1,6 +1,8 @@
 # hydro_bsc_project
 Project to do hydrodynamics on cartesian and voronoi meshes.
+
 Currently: Shallow Water first and second order FV solver (MUSCL), Advection
+
 Will eventually also include a second order FV solver for euler equations and maybe a DG solver
 
 ## Changes in last update
