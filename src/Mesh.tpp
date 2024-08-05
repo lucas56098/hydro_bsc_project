@@ -9,6 +9,7 @@
 #include "cell_types/Q_Cell.h"
 #include "cell_types/Conway_Cell.h"
 #include "cell_types/SWE_Cell.h"
+#include "cell_types/Euler_Cell.h"
 #include "vmp/VoronoiMesh.h"
 #include "utilities/Functions.h"
 #include <algorithm>
@@ -128,7 +129,7 @@ vector<Point> Mesh<CellType>::generate_seed_points(int N, bool fixed_random_seed
 // GRID GENERATION: -------------------------------------------------------------------------------
 // calls the generate Mesh functions depending on specified options (cartesian, 1D/2D, N_row, optional lloyd preprocessing, repeating boundary conditions)
 template <typename CellType>
-void Mesh<CellType>::generate_grid(bool cartesian, bool is_1D, int N_row, int lloyd_iterations, bool repeating) {
+void Mesh<CellType>::generate_grid(bool cartesian, bool is_1D, int N_row, int lloyd_iterations, bool repeating, bool structure) {
 
     if (cartesian) {
         // generate cartesian mesh
@@ -151,8 +152,19 @@ void Mesh<CellType>::generate_grid(bool cartesian, bool is_1D, int N_row, int ll
         } else {
             // do it in 2D
             vector<Point> pts = generate_seed_points(N_row * N_row, true, 0, 1, 42, true, 100, 1);
-            this->generate_vmesh2D(pts, lloyd_iterations, repeating);
+            if (lloyd_iterations != 0) {do_lloyd_iterations(&pts, lloyd_iterations);};
+            int nr;
+            if (structure) {nr = add_struct(&pts, 0.01, 0.03, "struct");}
+
+            this->generate_vmesh2D(pts, repeating, !structure);
             is_cartesian = false;
+
+            if (structure) {
+                for (int i = 0; i < nr; i++) {
+                    make_cell_boundary_cell(i);
+                }
+            }
+
         }
 
     }
@@ -251,42 +263,7 @@ void Mesh<CellType>::generate_uniform_grid2D(Point start, int n_hor, int n_vert,
 
 // generates vmesh using vmp and converts it into data usable for this mesh type
 template <typename CellType>
-void Mesh<CellType>::generate_vmesh2D(vector<Point> pts, int lloyd_iterations, bool repeating) {
-
-    // preprocessing step to change pts for mesh into pts for approx centroidal vmesh
-    if (lloyd_iterations != 0) {
-        cout << "start lloyd_iterations" << endl;
-
-        // calculate original mesh
-        VoronoiMesh initial_vmesh(pts);
-        initial_vmesh.do_point_insertion();
-        
-        // do multiple iterations of lloyds algorithm
-        for (int i = 0; i<lloyd_iterations; i++) {
-
-            // calculate centroids
-            vector<Point> centroids;
-            centroids.reserve(initial_vmesh.vcells.size());
-            for (int i = 0; i<initial_vmesh.vcells.size(); i++) {
-                centroids.push_back(initial_vmesh.vcells[i].get_centroid());
-            }
-
-            // replace original mesh seeds with centroids and calculate mesh again
-            initial_vmesh = VoronoiMesh(centroids);
-            initial_vmesh.do_point_insertion();
-
-        }
-
-        // after iterations store final calculated seeds in pts
-        vector<Point> centroidal_seeds;
-        centroidal_seeds.reserve(initial_vmesh.vcells.size());
-        for (int i = 0; i<initial_vmesh.vcells.size(); i++) {
-            centroidal_seeds.push_back(initial_vmesh.vcells[i].seed);
-        }
-        pts = centroidal_seeds;
-        cout << "finished lloyd_iterations" << endl;
-    }
-
+void Mesh<CellType>::generate_vmesh2D(vector<Point> pts, bool repeating, bool point_insertion) {
 
     // preprocessing for repeating boundary conditions
     vector<Point> points_plus_ghost;
@@ -314,7 +291,13 @@ void Mesh<CellType>::generate_vmesh2D(vector<Point> pts, int lloyd_iterations, b
 
     // generate vmesh
     VoronoiMesh vmesh(pts);
-    vmesh.do_point_insertion();
+    //vmesh.do_point_insertion();
+    if (point_insertion) {
+        vmesh.do_point_insertion();
+    } else {
+        vmesh.construct_mesh();
+    }
+
 
     // loop through all cells (of initial pts vector) to set everything but neighbour relations
     for (int i = 0; i<initial_pts_size; i++) {
@@ -407,6 +390,45 @@ void Mesh<CellType>::generate_vmesh2D(vector<Point> pts, int lloyd_iterations, b
     }
 
 
+}
+
+
+// does the lloyd_iterations to some points
+template <typename CellType>
+void Mesh<CellType>::do_lloyd_iterations(vector<Point>* pts, int lloyd_iterations) {
+    // preprocessing step to change pts for mesh into pts for approx centroidal vmesh
+    if (lloyd_iterations != 0) {
+        cout << "start lloyd_iterations" << endl;
+
+        // calculate original mesh
+        VoronoiMesh initial_vmesh(*pts);
+        initial_vmesh.do_point_insertion();
+        
+        // do multiple iterations of lloyds algorithm
+        for (int i = 0; i<lloyd_iterations; i++) {
+
+            // calculate centroids
+            vector<Point> centroids;
+            centroids.reserve(initial_vmesh.vcells.size());
+            for (int i = 0; i<initial_vmesh.vcells.size(); i++) {
+                centroids.push_back(initial_vmesh.vcells[i].get_centroid());
+            }
+
+            // replace original mesh seeds with centroids and calculate mesh again
+            initial_vmesh = VoronoiMesh(centroids);
+            initial_vmesh.do_point_insertion();
+
+        }
+
+        // after iterations store final calculated seeds in pts
+        vector<Point> centroidal_seeds;
+        centroidal_seeds.reserve(initial_vmesh.vcells.size());
+        for (int i = 0; i<initial_vmesh.vcells.size(); i++) {
+            centroidal_seeds.push_back(initial_vmesh.vcells[i].seed);
+        }
+        *pts = centroidal_seeds;
+        cout << "finished lloyd_iterations" << endl;
+    }
 }
 
 
@@ -545,7 +567,7 @@ void Mesh<CellType>::initialize_Q_cells(int a, int b, double value, int step) {
 
 // sets the initial condition according to given analytical Q_circle
 template <typename CellType>
-void Mesh<CellType>::initalize_Q_circle(Point p0, double r, double Qval) {
+void Mesh<CellType>::initialize_Q_circle(Point p0, double r, double Qval) {
 
     // make sure that the cell type is correct
     if constexpr (is_same_v<CellType, Q_Cell> == false) {
@@ -563,7 +585,13 @@ void Mesh<CellType>::initalize_Q_circle(Point p0, double r, double Qval) {
 
 // Function to initalize a gaussian for shallow water equations
 template <typename CellType>
-void Mesh<CellType>::initalize_SWE_gaussian(Point p0, double A, double sigma) {
+void Mesh<CellType>::initialize_SWE_gaussian(Point p0, double A, double sigma) {
+
+    // make sure that the cell type is correct
+    if constexpr (is_same_v<CellType, SWE_Cell> == false) {
+        cerr << "initialize_SWE_gaussian called with wrong cell type, you must use SWE_Cells" << endl;
+        exit(EXIT_FAILURE);
+    }
 
     for (int i = 0; i < cells.size(); i++) {
 
@@ -583,7 +611,13 @@ void Mesh<CellType>::initalize_SWE_gaussian(Point p0, double A, double sigma) {
 
 // sets initial conditions for SWE dam break (x, diagonal, circular)
 template <typename CellType>
-void Mesh<CellType>::initalize_SWE_dam_break(double h1, double h2, double pos, int dam_break_type) {
+void Mesh<CellType>::initialize_SWE_dam_break(double h1, double h2, double pos, int dam_break_type) {
+
+    // make sure that the cell type is correct
+    if constexpr (is_same_v<CellType, SWE_Cell> == false) {
+        cerr << "initialize_SWE_dam_break called with wrong cell type, you must use SWE_Cells" << endl;
+        exit(EXIT_FAILURE);
+    }
 
     // go through all cells
     for (int i = 0; i< cells.size(); i++) {
@@ -606,11 +640,11 @@ void Mesh<CellType>::initalize_SWE_dam_break(double h1, double h2, double pos, i
 
         // set values according to bool
         if (set_values) {
-            cells[i].h = h1;
+            cells[i].h += h1-1;
             cells[i].u = 0;
             cells[i].v = 0;
         } else {
-            cells[i].h = h2;
+            cells[i].h += h2-1;
             cells[i].u = 0;
             cells[i].v = 0;
         }
@@ -619,9 +653,67 @@ void Mesh<CellType>::initalize_SWE_dam_break(double h1, double h2, double pos, i
 }
 
 
+// function to initalize sods shock tube on the mesh
+template <typename CellType>
+void Mesh<CellType>::initialize_euler_shock_tube() {
+
+    // make sure that the cell type is correct
+    if constexpr (is_same_v<CellType, Euler_Cell> == false) {
+        cerr << "initialize_euler_shock_tube called with wrong cell type, you must use Euler_Cells" << endl;
+        exit(EXIT_FAILURE);
+    }
+
+    // loop through all cells
+    for (int i = 0; i < cells.size(); i++) {
+
+        if (cells[i].seed.x < 0.5) {
+            cells[i].rho += 1-1;
+            cells[i].u = 0;
+            cells[i].v = 0;
+            cells[i].E += (1/(cells[i].gamma - 1)) * 1 - 1;
+        } else {
+            cells[i].rho += 0.125-1;
+            cells[i].u = 0;
+            cells[i].v = 0;
+            cells[i].E += (1/(cells[i].gamma - 1)) * 0.1 - 1;
+        }
+    }
+}
+
+// function to initalize a kelvin helmholtz instability on the mesh
+template <typename CellType>
+void Mesh<CellType>::initalize_kelvin_helmholtz() {
+
+    // make sure that the cell type is correct
+    if constexpr (is_same_v<CellType, Euler_Cell> == false) {
+        cerr << "initalize_kelvin_helmholtz called with wrong cell type, you must use Euler_Cells" << endl;
+        exit(EXIT_FAILURE);
+    }
+
+    // loop through all cells
+    for (int i = 0; i < cells.size(); i++) {
+
+        double pi = 3.14159265358979323846;
+
+        if (cells[i].seed.y > 0.3 + 0.02*sin(2*pi*cells[i].seed.x*2) && cells[i].seed.y < 0.7 + 0.02*sin(2*pi*cells[i].seed.x*2)) {
+            cells[i].rho = 1;
+            cells[i].u = 0.2;
+            cells[i].v = 0.02*sin(2*pi*cells[i].seed.x*2);
+            cells[i].E = (1/(cells[i].gamma - 1)) + 0.125;
+        } else {
+            cells[i].rho = 0.2;
+            cells[i].u = -0.2;
+            cells[i].v = 0.02*sin(2*pi*cells[i].seed.x*2);
+            cells[i].E = (1/(cells[i].gamma - 1)) + 0.025;
+        }
+    }
+  
+}
+
+
 // Function to create an internal boundary structure (just a square at the moment)
 template <typename CellType>
-void Mesh<CellType>::inialize_boundary_struct(Point p0, double l_x, double l_y) {
+void Mesh<CellType>::initialize_boundary_struct(Point p0, double l_x, double l_y) {
 
     // loop through all cells
     for (int i = 0; i < cells.size(); i++) {
@@ -647,9 +739,18 @@ void Mesh<CellType>::make_cell_boundary_cell(int i) {
     // make sure that the cell type is correct
     if constexpr (is_same_v<CellType, SWE_Cell> == true) {
         // boundary cells have h = -INFINITY such that they will not be plotted in visualization
-        cells[i].h = -INFINITY;
+        cells[i].h = -10;
         cells[i].u = 0;
         cells[i].v = 0;
+    }
+
+    // make sure that the cell type is correct
+    if constexpr (is_same_v<CellType, Euler_Cell> == true) {
+        // boundary cells have h = -INFINITY such that they will not be plotted in visualization
+        cells[i].rho = -INFINITY;
+        cells[i].u = 0;
+        cells[i].v = 0;
+        cells[i].E = -INFINITY;
     }
 
     // loop through edges of that boundary cell
@@ -676,6 +777,102 @@ void Mesh<CellType>::make_cell_boundary_cell(int i) {
 }
 
 
+// loads structure and places it in meshpoints
+// structures are given by a list of points specifying the verticies
+// verticies need to be in clockwise orientation!!!
+template <typename CellType>
+int Mesh<CellType>::add_struct(vector<Point>* pts, double dist_a, double safety_dist, string structname) {
+    
+    // load structpoints from file
+    vector<Point> verticies;
+    ifstream file("../src/files/" + structname + ".csv");
+    string line;
+
+    while (getline(file, line)) {
+        stringstream ss(line);
+        string x_string, y_string;
+
+        if (getline(ss, x_string, ',') && getline(ss, y_string, ',')) {
+            double x = stod(x_string);
+            double y = stod(y_string);
+            verticies.emplace_back(x, y);
+        }
+    }
+    file.close();
+
+    // calculate corresponding seeds in inner_seeds/outer_seeds
+    vector<Point> edge_vectors;
+    vector<Point> a = verticies;
+    vector<Point> b;
+    vector<Point> midpoints;
+    for (int i = 0; i < verticies.size(); i++) {
+        b.emplace_back(verticies[(i+1)%verticies.size()]);
+    }
+    for (int i = 0; i < verticies.size(); i++) {
+        edge_vectors.emplace_back((b[i].x - a[i].x), (b[i].y - a[i].y));
+        midpoints.emplace_back((a[i].x + b[i].x)/2.0, (a[i].y + b[i].y)/2.0);
+    }
+    vector<Point> normal_vectors;
+    for (int i = 0; i<edge_vectors.size(); i++) {
+        normal_vectors.emplace_back((-1*(edge_vectors[i].y)/(sqrt(edge_vectors[i].x*edge_vectors[i].x + edge_vectors[i].y*edge_vectors[i].y))),
+                                    ((edge_vectors[i].x)/(sqrt(edge_vectors[i].x*edge_vectors[i].x + edge_vectors[i].y*edge_vectors[i].y))));
+    }
+    vector<Point> inner_points;
+    vector<Point> outer_points;
+    for (int i = 0; i< normal_vectors.size(); i++) {
+        inner_points.emplace_back((midpoints[i].x - dist_a * normal_vectors[i].x), (midpoints[i].y - dist_a * normal_vectors[i].y));
+        outer_points.emplace_back((midpoints[i].x + dist_a * normal_vectors[i].x), (midpoints[i].y + dist_a * normal_vectors[i].y));
+    }
+
+
+    // remove seeds inside of struct (using ray-casting-algorithm, ray along x direction) and seeds to close to struct
+    vector<Point> pts_removed;
+    for (int i = 0; i < (*pts).size(); i++) {
+        Point pt = (*pts)[i];
+        int counter = 0;
+        double min_dist_to_outer_seeds = 2;
+        for (int j = 0; j < verticies.size(); j++) {
+            double crossing_x = a[j].x + ((pt.y - a[j].y)/(b[j].y - a[j].y)) * (b[j].x - a[j].x);
+            //cout << i << " _ " << (pt.y > a[j].y && pt.y < b[j].y) << " " << (pt.y < a[j].y && pt.y > b[j].y) << endl;
+            if (((pt.y > a[j].y && pt.y < b[j].y) || (pt.y < a[j].y && pt.y > b[j].y)) && (pt.x < crossing_x)) {
+                counter += 1;
+            }
+
+            double dist_to_outer_seed = sqrt((pt.x - outer_points[j].x)*(pt.x - outer_points[j].x) + (pt.y - outer_points[j].y)*(pt.y - outer_points[j].y));
+            if (dist_to_outer_seed < min_dist_to_outer_seeds) {
+                min_dist_to_outer_seeds = dist_to_outer_seed;
+            }
+        }
+
+        if (counter%2 == 0 && min_dist_to_outer_seeds > safety_dist) {
+            pts_removed.push_back((*pts)[i]);
+            //(*pts).erase((*pts).begin() + i);
+        }
+    }
+    *pts = pts_removed;
+
+
+
+    // return int = inner_seeds.size(), set *pts =  {inner_seeds, outer_seeds, pts}
+    vector<Point> new_pts;
+    for (int i = 0; i<inner_points.size(); i++) {
+        new_pts.push_back(inner_points[i]);
+    }
+    for (int i = 0; i<outer_points.size(); i++) {
+        new_pts.push_back(outer_points[i]);
+    }
+    for (int i = 0; i<(*pts).size(); i++) {
+        new_pts.push_back((*pts)[i]);
+    }
+    *pts = new_pts;
+
+    return inner_points.size();
+
+
+}
+
+
+
 // SAVE DATA TO FILE ------------------------------------------------------------------------------
 // saves mesh into csv file readable for python script
 template <typename CellType>
@@ -695,7 +892,7 @@ void Mesh<CellType>::save_mesh(int file_nr, string name, double dt) {
     }
 
     // save the mesh in the following format: ax1, ay1, bx1, by1 ; ax2, ... ; ..; | Q
-    output_file << "seed.x, seed.y | a.x, a.y, b.x, b.y ; a.x ... ; | Quantities" << endl;
+    output_file << "seed.x, seed.y | a.x, a.y ; a.x ... ; | Quantities" << endl;
 
     for (int i = 0; i<cells.size(); i++) {
 
@@ -726,6 +923,11 @@ void Mesh<CellType>::save_mesh(int file_nr, string name, double dt) {
         // if cell type is SWE_cell save h, u, v
         if constexpr (is_same_v<CellType, SWE_Cell>) {
             output_file << cells[i].h << "," << cells[i].u << "," << cells[i].v;
+        }
+
+        // if cell type is Euler_cell save rho, u, v, E, P
+        if constexpr(is_same_v<CellType, Euler_Cell>) {
+            output_file << cells[i].rho << "," << cells[i].u << "," << cells[i].v << "," << cells[i].E << "," << cells[i].get_P();
         }
 
         output_file << endl;

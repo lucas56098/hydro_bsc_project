@@ -21,6 +21,7 @@ add_executable(hydro
     cell_types/Q_Cell.cpp
     cell_types/Conway_Cell.cpp
     cell_types/SWE_Cell.cpp
+    cell_types/Euler_Cell.cpp
 
     # further utilities
     utilities/Functions.cpp

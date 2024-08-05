@@ -76,8 +76,8 @@ def plot_2D(polygons, Q, cmap = 'viridis', vmin = 0, vmax = 1, edgecolor = 'face
     
     # add collection to axis and set axis options
     ax.add_collection(collection)
-    ax.set_xlim(-0.1, 1.1)
-    ax.set_ylim(-0.1, 1.1)
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
 
@@ -121,7 +121,7 @@ def animation2D(file_name, frames, fps=30, animation_name='animation2D', cbar_la
     cbar.set_label(cbar_label)
 
     # add empty scatter plot to eventually later on show seeds
-    scatter_plot = ax.scatter([], [], color = 'tab:blue')
+    scatter_plot = ax.scatter([], [], color = 'tab:red', s = 10)
 
     # animation update function
     def update(frame):
@@ -209,7 +209,9 @@ def analytic_Q(x, t, velocity, a, b):
 
 
 # function to make 1D animation of the mesh
-def animation1D(filerange, filenames, labels, sort_option, quantity_index, fps = 30, title = '', x_label = '', y_label = 'Q-Value', xlim = (0,1), ylim = (0, 1), save_name = 'animation1D', bin_size = 0, analytic_solution = "", velocity = 0.5, a = 0, b = 0.1, hl = 2, hr= 1, g = 1, x0 = 0.5):
+def animation1D(filerange, filenames, labels, sort_option, quantity_index, fps = 30, title = '', x_label = '', y_label = 'Q-Value', 
+                xlim = (0,1), ylim = (0, 1), save_name = 'animation1D', bin_size = 0, analytic_solution = "", velocity = 0.5, a = 0, b = 0.1, 
+                hl = 2, hr= 1, g = 1, x0 = 0.5, gamma = 5.0/3.0, left_state = (1,1,0), right_state = (0.1, 0.125, 0)):                          # left/right state = (Pressure, Density, Velocity)
     
     # function to update the plot for given frame
     def update1D(frame):
@@ -294,6 +296,18 @@ def animation1D(filerange, filenames, labels, sort_option, quantity_index, fps =
                 lsp = np.linspace(xlim[0], xlim[1], 1000)
                 h_analytic = [get_h_at_t_and_x(x, Q[0, 0], x0, cl, cm, cr, hl, hm, hr, g) for x in lsp]
                 plt.plot(lsp, h_analytic, label = 'analytic', color = 'red', linewidth = 0.5)
+
+            if analytic_solution == "shock_tube" and i == range(len(filenames))[-1]:
+                
+                ### For the analytical solution to the shock tube we use a 
+                ### package written by Jerko Škifić. Feel free to check it out: https://github.com/ibackus/sod-shocktube
+                import sodshock  # Copyright (c) 2015 Jerko Škifić
+
+                positions, regions, values = sodshock.solve(left_state, right_state, (xlim[0], xlim[1], x0), Q[0, 0], gamma, 1000)
+
+                val_names = ['time - cannot plot analytical solution for time', 'rho', 'u', 'v  - cannot plot analytical solution for y-velocity', 'e  - cannot plot analytical solution for energy density', 'p'] # only rho, u, p will work though (only ones that we can directly compare)
+
+                plt.plot(values['x'], values[val_names[quantity_index[0]]], color = 'red', label = 'analytic', linewidth = 1)
 
         # optional title
         if title != '':

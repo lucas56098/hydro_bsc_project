@@ -7,7 +7,6 @@
 #include <type_traits>
 #include "cell_types/Point.h"
 #include "cell_types/Cell.h"
-#include "cell_types/Q_Cell.h"
 #include "Mesh.h"
 #include "Solver.h"
 
@@ -36,15 +35,30 @@ Point Solver<CellType>::get_normal_vec(Point a, Point b) {
 template <typename CellType>
 array<double, 3> Solver<CellType>::rotate2Dswe(array<double, 3> vec, double angle) {
 
-    array<double, 3> rot_vec = {
+    array<double, 3> rot_vec =  {
                                     vec[0],
                                     cos(angle) * vec[1] - sin(angle) * vec[2],
                                     sin(angle) * vec[1] + cos(angle) * vec[2]
-                               };
+                                };
 
     return rot_vec;
 
 }
+
+// function to rotate an euler vector where [1] and [2] are the velocities and [0], [3] stay const.
+template <typename CellType>
+array<double, 4> Solver<CellType>::rotate2Deuler(array<double, 4> vec, double angle) {
+
+    array<double, 4> rot_vec =  {    
+                                    vec[0],
+                                    cos(angle) * vec[1] - sin(angle) * vec[2],
+                                    sin(angle) * vec[1] + cos(angle) * vec[2],
+                                    vec[3]
+                                };
+
+    return rot_vec;
+}
+
 
 // SOLVERS (update the Mesh by a single step) -----------------------------------------------------
 // SOLVER: Fake Diffusion--------------------------------------------------------------------------
@@ -320,7 +334,7 @@ void Solver<CellType>::advection_vmesh(double dt, Point v) {
 
 
 // SOLVER: Shallow Water Equations ----------------------------------------------------------------
-// 1st order implementation of shallow water equation 2D voronoi using HLL solver
+// implementation of shallow water equation 2D voronoi using HLL solver
 template<typename CellType>
 void Solver<CellType>::shallow_water(double dt, int boundary_cond, double numerical_diffusion_coeff, int sim_order, double g) {
 
@@ -349,7 +363,7 @@ void Solver<CellType>::shallow_water(double dt, int boundary_cond, double numeri
         array<double, 3> huv_i_n = {grid->cells[i].h, grid->cells[i].u, grid->cells[i].v};
         array<double, 3> total_flux = {0, 0, 0};
 
-        // calculate total_flux by summing over edge fluxed * edge_length
+        // calculate total_flux by summing over edge flux * edge_length
         for (int j = 0; j < grid->cells[i].edges.size(); j++) {
             
             // values of other cell
@@ -396,6 +410,76 @@ void Solver<CellType>::shallow_water(double dt, int boundary_cond, double numeri
 
 }
 
+
+// SOLVER: Euler equations ------------------------------------------------------------------------
+// implementation of shallow water equation 2D voronoi using HLL solver
+template <typename CellType>
+void Solver<CellType>::euler(double dt, int boundary_cond) {
+
+    // make sure that the cell type is correct
+    if constexpr (is_same_v<CellType, Euler_Cell> == false) {
+        cerr << "euler step called on Mesh with wron cell type, you must use Euler_Cells" << endl;
+        exit(EXIT_FAILURE);
+    }
+
+    vector<array<double, 4>> Q_new;
+    Q_new.reserve(grid->cells.size());
+
+    // for second order fv the gradients would be calculated here (not implemented yet)
+
+    // go through each cell to calculate the new values
+    for (int i = 0; i < grid->cells.size(); i++) {
+
+        array<double, 4> puvE_i_n = {grid->cells[i].rho, grid->cells[i].u, grid->cells[i].v, grid->cells[i].E};
+        array<double, 4> total_flux = {0, 0, 0, 0};
+
+        // calculate total_flux by summing over edge flux * edge_length
+        for (int j = 0; j < grid->cells[i].edges.size(); j++) {
+
+            // get value of other cell
+            array<double, 4> puvE_j_n = get_puvE_j(puvE_i_n, i, j, boundary_cond);
+            
+            // for second order fv here there would be a linear extrapolation (not implemented yet)
+
+            // calculate Flux
+            array<double, 4> F_ij = hll_solver_euler_2D(puvE_i_n, puvE_j_n, i, j);
+
+            // get length of face
+            double l_i_j = grid->cells[i].edges[j].length;
+
+            // add to total flux * length
+            total_flux[0] += F_ij[0] * l_i_j;
+            total_flux[1] += F_ij[1] * l_i_j;
+            total_flux[2] += F_ij[2] * l_i_j;
+            total_flux[3] += F_ij[3] * l_i_j;
+
+        }
+
+        // calculate new values
+        array<double, 4> puvE_i_np1 = {0, 0, 0, 0};
+        double A = grid->cells[i].volume;
+        puvE_i_np1[0] = puvE_i_n[0] - (dt/A) * total_flux[0];
+        puvE_i_np1[1] = (puvE_i_n[0]*puvE_i_n[1] - (dt/A) * total_flux[1])/puvE_i_np1[0];
+        puvE_i_np1[2] = (puvE_i_n[0]*puvE_i_n[2] - (dt/A) * total_flux[2])/puvE_i_np1[0];
+        puvE_i_np1[3] = puvE_i_n[3] - (dt/A) * total_flux[3];
+
+        // store new values
+        Q_new.push_back(puvE_i_np1);
+
+    }
+
+    // then apply all the changes
+    for (int i = 0; i < grid->cells.size(); i++) {
+        grid->cells[i].rho = Q_new[i][0];
+        grid->cells[i].u = Q_new[i][1];
+        grid->cells[i].v = Q_new[i][2];
+        grid->cells[i].E = Q_new[i][3];
+    }
+
+}
+
+
+
 // RIEMANN SOLVERS --------------------------------------------------------------------------------
 // UNPHYSICAL FOR WHATEVER REASON: Roe's Solver for Shallow Water Equation 2D unstructured
 /*template <typename CellType>
@@ -430,8 +514,8 @@ array<double, 3> Solver<CellType>::hll_solver_swe_2D(array<double, 3> huv_i_n, a
     // rotate huv_i, huv_j into n-frame
     Point n = get_normal_vec(grid->cells[i].edges[j].a, grid->cells[i].edges[j].b);
     double theta = atan2(n.y, n.x);
-    array<double, 3> huv_l = rotate2Dswe(huv_i_n, theta);
-    array<double, 3> huv_r = rotate2Dswe(huv_j_n, theta);
+    array<double, 3> huv_l = rotate2Dswe(huv_i_n, -theta);
+    array<double, 3> huv_r = rotate2Dswe(huv_j_n, -theta);
 
     // using huv_l, huv_r (the rotated ones) now calc F_HLLn using HLL solver
     // calc f_l and f_r
@@ -455,7 +539,7 @@ array<double, 3> Solver<CellType>::hll_solver_swe_2D(array<double, 3> huv_i_n, a
     }
 
     // get F_HLL by rotating F_HLLn back into lab frame
-    array<double, 3> F_HLL = rotate2Dswe(F_HLL_n, -theta);
+    array<double, 3> F_HLL = rotate2Dswe(F_HLL_n, theta);
     
     // optional additional diffusion
     F_HLL[0] += - add_diffusion_coeff * (huv_l[0] - huv_r[0]);
@@ -464,6 +548,49 @@ array<double, 3> Solver<CellType>::hll_solver_swe_2D(array<double, 3> huv_i_n, a
 
     return F_HLL;
 }
+
+
+// HLL Solver for Euler equations 2D unstructured
+template <typename CellType>
+array<double, 4> Solver<CellType>::hll_solver_euler_2D(array<double, 4> puvE_i_n, array<double, 4> puvE_j_n, int i, int j) {
+
+    // rotate puvE_i, puvE_j into n-frame
+    Point n = get_normal_vec(grid->cells[i].edges[j].a, grid->cells[i].edges[j].b);
+    double theta = atan2(n.y, n.x);
+    array<double, 4> puvE_l = rotate2Deuler(puvE_i_n, -theta);
+    array<double, 4> puvE_r = rotate2Deuler(puvE_j_n, -theta);
+
+    // using puvE_l, puvE_r (the rotated ones) now calc F_HLLn using HLL solver
+    // calc f_l and f_r
+    array<double, 4> f_l = get_flux_f_euler(puvE_l);
+    array<double, 4> f_r = get_flux_f_euler(puvE_r);
+
+    // calculate wave speeds
+    double gamma = grid->cells[0].get_gamma();
+    double SL = min(puvE_l[1] - sqrt((gamma * get_P_ideal_gas(puvE_l))/(puvE_l[0])), puvE_r[1] - sqrt((gamma * get_P_ideal_gas(puvE_r))/(puvE_r[0])));
+    double SR = max(puvE_l[1] + sqrt((gamma * get_P_ideal_gas(puvE_l))/(puvE_l[0])), puvE_r[1] + sqrt((gamma * get_P_ideal_gas(puvE_r))/(puvE_r[0])));
+
+    // HLL solver for F
+    array<double, 4> F_HLL_n;
+    if (SL >= 0) {
+        F_HLL_n = f_l;
+    } else if (SL < 0 && SR > 0) {
+        F_HLL_n[0] = (SR * f_l[0] - SL * f_r[0] + SL * SR * (puvE_r[0] - puvE_l[0])) / (SR - SL);
+        F_HLL_n[1] = (SR * f_l[1] - SL * f_r[1] + SL * SR * (puvE_r[0] * puvE_r[1] - puvE_l[0] * puvE_l[1])) / (SR - SL);
+        F_HLL_n[2] = (SR * f_l[2] - SL * f_r[2] + SL * SR * (puvE_r[0] * puvE_r[2] - puvE_l[0] * puvE_l[2])) / (SR - SL);
+        F_HLL_n[3] = (SR * f_l[3] - SL * f_r[3] + SL * SR * (puvE_r[3] - puvE_l[3])) / (SR - SL);
+    } else if (SR <= 0) {
+        F_HLL_n = f_r;
+    }
+
+    // get F_HLL by rotating F_HLLn back into lab frame
+    array<double, 4> F_HLL = rotate2Deuler(F_HLL_n, theta);
+
+    return F_HLL;
+}
+
+
+
 
 
 // GRADIENTS AND EXTRAPOLATION --------------------------------------------------------------------
@@ -664,7 +791,45 @@ array<double, 3> Solver<CellType>::get_huv_j(array<double, 3> huv_i, int i, int 
 
 }
 
-// get flux for given cell state 
+// returns puvE_j vector vor given i, j managing boundary handling
+template <typename CellType>
+array<double, 4> Solver<CellType>::get_puvE_j(array<double, 4> puvE_i, int i, int j, int boundary_cond) {
+
+    // values of other cell (initalized with sink boundaries for boundary cond = 1)
+    array<double, 4> puvE_j = {puvE_i[0], boundary_cond * puvE_i[1], boundary_cond * puvE_i[2], puvE_i[3]};
+    // if reflective boundary change velocities accordingly
+    if (boundary_cond == -1) {
+        Point n = get_normal_vec(grid->cells[i].edges[j].a, grid->cells[i].edges[j].b);
+
+        puvE_j[1] = puvE_i[1] - 2*(puvE_i[1]*n.x + puvE_i[2]*n.y)*n.x;
+        puvE_j[2] = puvE_i[2] - 2*(puvE_i[1]*n.x + puvE_i[2]*n.y)*n.y;
+    }
+
+    // get actual puvE values if its not a boundary
+    if (grid->cells[i].edges[j].is_boundary == false) {
+        puvE_j[0] = grid->cells[i].edges[j].neighbour->get_rho();
+        puvE_j[1] = grid->cells[i].edges[j].neighbour->get_u();
+        puvE_j[2] = grid->cells[i].edges[j].neighbour->get_v();
+        puvE_j[3] = grid->cells[i].edges[j].neighbour->get_E();
+    }
+
+    return puvE_j;
+
+}
+
+
+// get Pressure for given euler rho, u, v, E
+template <typename CellType>
+double Solver<CellType>::get_P_ideal_gas(array<double, 4> puvE) {
+
+    double gamma = grid->cells[0].get_gamma();      // assumes gamma is the same for all cells
+    double P = (gamma - 1) * (puvE[3] - (0.5 * puvE[0] * (puvE[1]*puvE[1] + puvE[2]*puvE[2]))) ;
+    return P;
+}
+
+
+
+// get F flux (in x-direction) for given cell state 
 template <typename CellType>
 array<double, 3> Solver<CellType>::get_flux_f_swe(array<double, 3> huv, double g) {
 
@@ -674,6 +839,24 @@ array<double, 3> Solver<CellType>::get_flux_f_swe(array<double, 3> huv, double g
                             };
 
     return flux;
+}
+
+
+// get F flux (in x-direction) for given cell state
+template <typename CellType>
+array<double, 4> Solver<CellType>::get_flux_f_euler(array<double, 4> puvE) {
+
+    double P = get_P_ideal_gas(puvE);
+
+    // calc flux
+    array<double, 4> flux = {   puvE[0]*puvE[1],
+                                puvE[0]*puvE[1]*puvE[1] + P,
+                                puvE[0] * puvE[1] * puvE[2],
+                                (puvE[3] + P) * puvE[1]
+                            };
+    
+    return flux;
+
 }
 
 

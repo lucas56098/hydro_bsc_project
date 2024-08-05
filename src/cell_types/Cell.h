@@ -49,6 +49,23 @@ public:
         throw runtime_error("v is not defined for base Cell");
     }
 
+    virtual double get_rho() const {
+        throw runtime_error("rho is not defined for base Cell");
+    }
+
+    virtual double get_E() const {
+        throw runtime_error("E is not defined for base Cell");
+    }
+
+    virtual double get_gamma() const {
+        throw runtime_error("adiabatic index is not defined for base Cell");
+    }
+
+    virtual double get_P() const {
+        throw runtime_error("P is not defined for base Cell");
+    }
+
+
 };
 
 #endif
