@@ -35,7 +35,10 @@ public:
     void initialize_SWE_gaussian(Point p0 = Point(0.5, 0.5), double A = 1, double sigma = 0.5);
     void initialize_SWE_dam_break(double h1 = 2.0, double h2 = 1.0, double pos = 0.5, int dam_break_type = 0);
     void initialize_euler_shock_tube();
-    void initalize_kelvin_helmholtz();
+    void initialize_kelvin_helmholtz();
+    void initialize_rayleigh_taylor();
+    void initialize_const_flow(Point v);
+    void initialize_quad_shock();
 
     // save mesh
     void save_mesh(int file_nr, string name, double dt);

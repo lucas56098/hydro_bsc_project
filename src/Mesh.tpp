@@ -85,11 +85,73 @@ vector<Point> Mesh<CellType>::generate_seed_points(int N, bool fixed_random_seed
     // define uniform random distribution
     eng = default_random_engine(random_seed);
     uniform_real_distribution<double> distr(min, max);
+    
+    
+    // optional point density for KH-instability
+    /*
+    uniform_real_distribution<int> distra(min, max);
+    normal_distribution<double> distr1(0.7, 0.03);
+    normal_distribution<double> distr2(0.3, 0.03);
+
+
+    // generate random coordinates for Points
+    for (int i = 0; i < N; ++i) {
+        double x = distr(eng);
+
+        double a;
+        if (distra(eng) > 0) {
+            a = distr1(eng);
+        } else {
+            a = distr2(eng);
+        }
+
+        double y = std::max(std::min(a, 0.9999), 0.0001) + 0.0009999999 * distr(eng);
+
+        points.push_back(Point(x, y));
+    }
+    */
+
+
+    // optional point density for quad shock
+    /*uniform_real_distribution<int> distra(1, 2);
+    for (int i = 0; i < N; i++) {
+        double x;
+        double y;
+        double scale = 0.2*distr(eng) + 0.45;
+        if (distra(eng) % 2 == 0) {
+            x = scale*distr(eng);
+            y = scale*distr(eng);
+        } else {
+            x = distr(eng);
+            y = distr(eng);
+        }
+
+        points.push_back(Point(x,y));
+    }*/
+
+    /*
+    // optional point density for circle
+    normal_distribution<double> distr2(0.5, 0.08);
+
+    // generate random coordinates for Points
+    for (int i = 0; i < N; ++i) {
+        double x = distr(eng);
+
+        double a = distr2(eng);
+
+
+        double y = std::max(std::min(a, 0.9999), 0.0001) + 0.0009999999 * distr(eng);
+
+        points.push_back(Point(x, y));
+    }*/
+    
+
 
     // generate random coordinates for Points
     for (int i = 0; i < N; ++i) {
         double x = distr(eng);
         double y = distr(eng);
+
         points.push_back(Point(x, y));
     }
 
@@ -154,7 +216,7 @@ void Mesh<CellType>::generate_grid(bool cartesian, bool is_1D, int N_row, int ll
             vector<Point> pts = generate_seed_points(N_row * N_row, true, 0, 1, 42, true, 100, 1);
             if (lloyd_iterations != 0) {do_lloyd_iterations(&pts, lloyd_iterations);};
             int nr;
-            if (structure) {nr = add_struct(&pts, 0.01, 0.03, "struct");}
+            if (structure) {nr = add_struct(&pts, 0.0003, 0.003, "struct");}
 
             this->generate_vmesh2D(pts, repeating, !structure);
             is_cartesian = false;
@@ -291,11 +353,11 @@ void Mesh<CellType>::generate_vmesh2D(vector<Point> pts, bool repeating, bool po
 
     // generate vmesh
     VoronoiMesh vmesh(pts);
-    //vmesh.do_point_insertion();
+    vmesh.do_point_insertion();
     if (point_insertion) {
-        vmesh.do_point_insertion();
+        //vmesh.do_point_insertion();
     } else {
-        vmesh.construct_mesh();
+        //vmesh.construct_mesh();
     }
 
 
@@ -666,7 +728,7 @@ void Mesh<CellType>::initialize_euler_shock_tube() {
     // loop through all cells
     for (int i = 0; i < cells.size(); i++) {
 
-        if (cells[i].seed.x < 0.5) {
+        if (cells[i].seed.x + cells[i].seed.y < 1) {
             cells[i].rho += 1-1;
             cells[i].u = 0;
             cells[i].v = 0;
@@ -682,7 +744,7 @@ void Mesh<CellType>::initialize_euler_shock_tube() {
 
 // function to initalize a kelvin helmholtz instability on the mesh
 template <typename CellType>
-void Mesh<CellType>::initalize_kelvin_helmholtz() {
+void Mesh<CellType>::initialize_kelvin_helmholtz() {
 
     // make sure that the cell type is correct
     if constexpr (is_same_v<CellType, Euler_Cell> == false) {
@@ -695,20 +757,105 @@ void Mesh<CellType>::initalize_kelvin_helmholtz() {
 
         double pi = 3.14159265358979323846;
 
-        if (cells[i].seed.y > 0.3 + 0.02*sin(2*pi*cells[i].seed.x*2) && cells[i].seed.y < 0.7 + 0.02*sin(2*pi*cells[i].seed.x*2)) {
-            cells[i].rho = 1;
-            cells[i].u = 0.2;
-            cells[i].v = 0.02*sin(2*pi*cells[i].seed.x*2);
-            cells[i].E = (1/(cells[i].gamma - 1)) + 0.125;
+        if (cells[i].seed.y > 0.3 && cells[i].seed.y < 0.7) {
+            cells[i].rho = 0.5;
+            cells[i].u = 0.3;
+            cells[i].v = 0;
+            cells[i].E = (1/(cells[i].gamma - 1)) + 0.5*cells[i].rho*(cells[i].u*cells[i].u);
         } else {
             cells[i].rho = 0.2;
-            cells[i].u = -0.2;
-            cells[i].v = 0.02*sin(2*pi*cells[i].seed.x*2);
-            cells[i].E = (1/(cells[i].gamma - 1)) + 0.025;
+            cells[i].u = -0.3;
+            cells[i].v = 0;
+            cells[i].E = (1/(cells[i].gamma - 1)) + 0.5*cells[i].rho*(cells[i].u*cells[i].u);
         }
     }
   
 }
+
+
+
+// function to initalize a rayleigh taylor instability on the mesh
+template <typename CellType>
+void Mesh<CellType>::initialize_rayleigh_taylor() {
+
+    // make sure that the cell type is correct
+    if constexpr (is_same_v<CellType, Euler_Cell> == false) {
+        cerr << "initalize_rayleigh_taylor called with wrong cell type, you must use Euler_Cells" << endl;
+        exit(EXIT_FAILURE);
+    }
+
+    // loop through all cells
+    for (int i = 0; i < cells.size(); i++) {
+
+        double pi = 3.14159265358979323846;
+
+        if (cells[i].seed.y > 0.5 - 0.1*cos(pi*2*cells[i].seed.x)) {
+            cells[i].rho = 1;
+            cells[i].u = 0;
+            cells[i].v = 0;
+            cells[i].E = (1/(cells[i].gamma - 1)) + 0.5*cells[i].rho*(cells[i].u*cells[i].u);
+        } else {
+            cells[i].rho = 0.2;
+            cells[i].u = 0;
+            cells[i].v = 0;
+            cells[i].E = (1/(cells[i].gamma - 1)) + 0.5*cells[i].rho*(cells[i].u*cells[i].u);
+        }
+    }
+  
+}
+
+
+// function to initialize a constant flow
+template <typename CellType>
+void Mesh<CellType>::initialize_const_flow(Point v) {
+    for (int i = 0; i<cells.size(); i++) {
+        cells[i].u += v.x;
+        cells[i].v += v.y;
+    }
+}
+
+
+// function to initialize a quad shock
+template <typename CellType>
+void Mesh<CellType>::initialize_quad_shock() {
+
+    // make sure that the cell type is correct
+    if constexpr (is_same_v<CellType, Euler_Cell> == false) {
+        cerr << "initialize_quad_shock called with wrong cell type, you must use Euler_Cells" << endl;
+        exit(EXIT_FAILURE);
+    }
+
+    // loop through all cells
+    for (int i = 0; i < cells.size(); i++) {
+
+        if (cells[i].seed.x >= 0.5 && cells[i].seed.y >= 0.5) {
+            cells[i].rho = 1.5;
+            cells[i].u = 0;
+            cells[i].v = 0;
+            cells[i].E = (1.5/(cells[i].gamma - 1)) + 0.5*cells[i].rho*(cells[i].u*cells[i].u + cells[i].v*cells[i].v);
+        } else if (cells[i].seed.x < 0.5 && cells[i].seed.y > 0.5) {
+            cells[i].rho = 0.5323;
+            cells[i].u = 1.206;
+            cells[i].v = 0;
+            cells[i].E = (0.3/(cells[i].gamma - 1)) + 0.5*cells[i].rho*(cells[i].u*cells[i].u + cells[i].v*cells[i].v);
+        } else if (cells[i].seed.x < 0.5 && cells[i].seed.y < 0.5) {
+            cells[i].rho = 0.138;
+            cells[i].u = 1.206;
+            cells[i].v = 1.206;
+            cells[i].E = (0.029/(cells[i].gamma - 1)) + 0.5*cells[i].rho*(cells[i].u*cells[i].u + cells[i].v*cells[i].v);
+        } else if (cells[i].seed.x > 0.5 && cells[i].seed.y < 0.5) {
+            cells[i].rho = 0.5323;
+            cells[i].u = 0;
+            cells[i].v = 1.206;
+            cells[i].E = (0.3/(cells[i].gamma - 1)) + 0.5*cells[i].rho*(cells[i].u*cells[i].u + cells[i].v*cells[i].v);
+        }
+    }
+
+}
+
+
+
+
 
 
 // Function to create an internal boundary structure (just a square at the moment)
@@ -818,6 +965,7 @@ int Mesh<CellType>::add_struct(vector<Point>* pts, double dist_a, double safety_
                                     ((edge_vectors[i].x)/(sqrt(edge_vectors[i].x*edge_vectors[i].x + edge_vectors[i].y*edge_vectors[i].y))));
     }
     vector<Point> inner_points;
+    inner_points.emplace_back(0.3, 0.5);
     vector<Point> outer_points;
     for (int i = 0; i< normal_vectors.size(); i++) {
         inner_points.emplace_back((midpoints[i].x - dist_a * normal_vectors[i].x), (midpoints[i].y - dist_a * normal_vectors[i].y));

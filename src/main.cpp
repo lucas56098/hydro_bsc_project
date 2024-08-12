@@ -9,28 +9,30 @@
 #include "Solver.h"
 #include "vmp/VoronoiMesh.h"
 #include "utilities/Functions.h"
+#include "Eigen/Dense"
 using namespace std;
+using namespace Eigen;
 
 // MAIN :  -------------------------------------------------------------------------------------------------------
 int main () {
 
     // SPECIFICATIONS -------------------------------------
     // grid
-    bool cartesian = true;
+    bool cartesian = false;
     string file_name = cartesian ? "cmesh" : "vmesh";
     bool is_1D = false; 
-    bool is_repeating = true;
-    int N_row = 10*5*5*2;//10*5*2*2*2*2*2*2*2*2*2*2*2;//10*5; // total cells = N^dimension
+    bool is_repeating = false;
+    int N_row = 160; // total cells = N^dimension
 
     // simulaiton
-    int sim_steps = 10*5*5*5*5*5;//10*5*2*2*2*2*2*2*2*2*2*2*2;//10*4*100;
-    double total_sim_time = 0.3*5*5;//0.35*3;
+    int sim_steps = 160*5*5*10;
+    double total_sim_time = 0.9*10;
     double dt = static_cast<double>(total_sim_time)/static_cast<double>(sim_steps);
-    int save_iter = 250;//10*5*2*2*2*2;
+    int save_iter = 100;//10*5*2*2*2*2;
 
     // GRID GENERATION ------------------------------------
     Mesh<Euler_Cell> grid;
-    grid.generate_grid(cartesian, is_1D, N_row, 5, is_repeating, false);
+    grid.generate_grid(cartesian, is_1D, N_row, 15, is_repeating, false);
 
 
     // INITIAL CONDITIONS ---------------
@@ -41,7 +43,7 @@ int main () {
     //grid.save_L1_adv_1Dstepfunc(0, true, 0.5, 0, 0.1);
     
     // initial conditions for SWE - - - - - - - - - - - - - 
-    //grid.initalize_SWE_dam_break(2.0, 1.0, 0.1, 0);
+    //grid.initialize_SWE_dam_break(2.0, 1.0, 0.5, 0);
     //grid.initalize_SWE_gaussian(Point(0.5, 0.5), 0.5, 0.2);
     //grid.initalize_SWE_gaussian(Point(0.75, 0.25), 1, 0.05);
     //grid.initalize_SWE_gaussian(Point(0.2, 0.4), 1, 0.05);
@@ -49,17 +51,21 @@ int main () {
 
     // initial conditions for euler - - - - - - - - - - - -
     //grid.initialize_euler_shock_tube();
-    grid.initalize_kelvin_helmholtz();
+    //grid.initialize_rayleigh_taylor();
+    //grid.initialize_quad_shock();
+    //grid.initialize_kelvin_helmholtz();
     //grid.cells[155].rho = 10;
     //grid.cells[130].rho = 2;
     //for (int i = 0; i<grid.cells.size(); i++) {
     //    grid.cells[i].u = 0.5;
     //    grid.cells[i].v = 0;
     //}
+    //grid.initialize_const_flow(Point(0.5, 0));
 
     // initialize boundary condition - - - - - - - - - - - - 
     //grid.initialize_boundary_struct(Point(0.6, 0.3), 0.02, 0.4);
-    //grid.initialize_boundary_struct(Point(0.0, 0.95), 1.0, 0.05);
+    //grid.initialize_boundary_struct(Point(0.0, 0.99), 1.0, 0.01);
+    //grid.initialize_boundary_struct(Point(0.0, 0.0), 1.0, 0.01);
 
     // SIMULATION -----------------------------------------
     Solver<Euler_Cell> solver(&grid);
@@ -93,7 +99,7 @@ int main () {
         //solver.conway();
         //solver.advection(dt, Point(0.5/sqrt(2), 0.5/sqrt(2)));
         //solver.shallow_water(dt, -1, 0, 2);
-        solver.euler(dt, -1);
+        solver.euler(dt, 1, 2);
     }
 
     cout << "done" << endl;

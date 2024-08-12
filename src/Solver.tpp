@@ -414,7 +414,7 @@ void Solver<CellType>::shallow_water(double dt, int boundary_cond, double numeri
 // SOLVER: Euler equations ------------------------------------------------------------------------
 // implementation of shallow water equation 2D voronoi using HLL solver
 template <typename CellType>
-void Solver<CellType>::euler(double dt, int boundary_cond) {
+void Solver<CellType>::euler(double dt, int boundary_cond, int sim_order, Point g) {
 
     // make sure that the cell type is correct
     if constexpr (is_same_v<CellType, Euler_Cell> == false) {
@@ -425,7 +425,14 @@ void Solver<CellType>::euler(double dt, int boundary_cond) {
     vector<array<double, 4>> Q_new;
     Q_new.reserve(grid->cells.size());
 
-    // for second order fv the gradients would be calculated here (not implemented yet)
+    vector<array<array<double, 4>, 2>> gradients;
+    if (sim_order == 2) {
+        // calculate gradients
+        gradients.reserve(grid->cells.size());
+        for (int i = 0; i < grid->cells.size(); i++) {
+            gradients.push_back(calc_euler_gradients(i, boundary_cond));
+        }
+    }
 
     // go through each cell to calculate the new values
     for (int i = 0; i < grid->cells.size(); i++) {
@@ -438,11 +445,17 @@ void Solver<CellType>::euler(double dt, int boundary_cond) {
 
             // get value of other cell
             array<double, 4> puvE_j_n = get_puvE_j(puvE_i_n, i, j, boundary_cond);
+            array<double, 4> puvE_i_ext = puvE_i_n;
+            array<double, 4> puvE_j_ext = puvE_j_n;
             
-            // for second order fv here there would be a linear extrapolation (not implemented yet)
+            if (sim_order == 2) {
+                // extrapolate values in space and time
+                puvE_i_ext = linear_extrapolate_euler(puvE_i_n, gradients, dt, i, j);
+                puvE_j_ext = linear_extrapolate_neighbour_euler(i, j, puvE_j_n, puvE_i_ext, gradients, dt, boundary_cond);
+            }
 
             // calculate Flux
-            array<double, 4> F_ij = hll_solver_euler_2D(puvE_i_n, puvE_j_n, i, j);
+            array<double, 4> F_ij = hll_solver_euler_2D(puvE_i_ext, puvE_j_ext, i, j);
 
             // get length of face
             double l_i_j = grid->cells[i].edges[j].length;
@@ -459,9 +472,9 @@ void Solver<CellType>::euler(double dt, int boundary_cond) {
         array<double, 4> puvE_i_np1 = {0, 0, 0, 0};
         double A = grid->cells[i].volume;
         puvE_i_np1[0] = puvE_i_n[0] - (dt/A) * total_flux[0];
-        puvE_i_np1[1] = (puvE_i_n[0]*puvE_i_n[1] - (dt/A) * total_flux[1])/puvE_i_np1[0];
-        puvE_i_np1[2] = (puvE_i_n[0]*puvE_i_n[2] - (dt/A) * total_flux[2])/puvE_i_np1[0];
-        puvE_i_np1[3] = puvE_i_n[3] - (dt/A) * total_flux[3];
+        puvE_i_np1[1] = (puvE_i_n[0]*puvE_i_n[1] - (dt/A) * total_flux[1] + dt*puvE_i_n[0]*g.x)/puvE_i_np1[0];
+        puvE_i_np1[2] = (puvE_i_n[0]*puvE_i_n[2] - (dt/A) * total_flux[2] + dt*puvE_i_n[0]*g.y)/puvE_i_np1[0];
+        puvE_i_np1[3] = puvE_i_n[3] - (dt/A) * total_flux[3] + dt*(puvE_i_n[1]*g.x + puvE_i_n[2]*g.y);
 
         // store new values
         Q_new.push_back(puvE_i_np1);
@@ -585,16 +598,12 @@ array<double, 4> Solver<CellType>::hll_solver_euler_2D(array<double, 4> puvE_i_n
 
     // get F_HLL by rotating F_HLLn back into lab frame
     array<double, 4> F_HLL = rotate2Deuler(F_HLL_n, theta);
-
     return F_HLL;
 }
 
 
-
-
-
 // GRADIENTS AND EXTRAPOLATION --------------------------------------------------------------------
-// calculate gradients for cell
+// calculate gradients for swe cell
 template <typename CellType>
 array<array<double, 3>, 2> Solver<CellType>::calc_swe_gradients(int i, int boundary_cond, double g) {
 
@@ -722,8 +731,8 @@ array<double, 3> Solver<CellType>::linear_extrapolate_swe(array<double, 3> huv_i
 
     // d
     Point f_mid = get_f_mid(i, j);
-    Point seed = grid->cells[i].centroid;
-    Point d = Point(f_mid.x - seed.x, f_mid.y - seed.y);
+    Point centroid = grid->cells[i].centroid;
+    Point d = Point(f_mid.x - centroid.x, f_mid.y - centroid.y);
 
     // U_i_ext
     array<double, 3> U_i_ext = {
@@ -734,6 +743,7 @@ array<double, 3> Solver<CellType>::linear_extrapolate_swe(array<double, 3> huv_i
 
     return U_to_huv(U_i_ext);
 }
+
 
 // linearly extraplolate cell i's neighbours states in space and time towards boundary j
 template <typename CellType>
@@ -765,7 +775,266 @@ array<double, 3> Solver<CellType>::linear_extrapolate_neighbour_swe(int i, int j
 }
 
 
+// calculate gradients for euler cell
+template<typename CellType>
+array<array<double, 4>, 2> Solver<CellType>::calc_euler_gradients(int i, int boundary_cond) {
 
+    double A = grid->cells[i].volume;
+    array<double, 4> U_i = puvE_to_U({grid->cells[i].rho, grid->cells[i].u, grid->cells[i].v, grid->cells[i].E});
+
+    array<array<double, 4>, 2> gradientU;
+    gradientU[0] = {0.0, 0.0, 0.0, 0.0};
+    gradientU[1] = {0.0, 0.0, 0.0, 0.0};
+
+    // go through all edges
+    for (int j = 0; j < grid->cells[i].edges.size(); j++) {
+
+        Point n = get_normal_vec(grid->cells[i].edges[j].a, grid->cells[i].edges[j].b);
+        double l_i_j = grid->cells[i].edges[j].length;
+
+        // values of other cell
+        array <double, 4> U_j = puvE_to_U(get_puvE_j(U_to_puvE(U_i), i, j, boundary_cond));
+
+        // get c_ij and |r_i_j|
+        Point f_mid = get_f_mid(i, j);
+        Point r_i = grid->cells[i].seed;
+        Point mid = Point(f_mid.x - r_i.x, f_mid.y - r_i.y);
+
+        // distance from seed r_i to neighbour seed r_j
+        double r_ij = 2 * (mid.x * n.x + mid.y * n.y);
+        // vector from midpoint between r_i and r_j to the midpoint of the face
+        Point c_ij = Point(
+                            mid.x - 0.5*r_ij*n.x,
+                            mid.y - 0.5*r_ij*n.y
+                          );
+
+        // add to sum of gradient
+        gradientU[0][0] += (l_i_j/A) * (((U_i[0] + U_j[0])/2.0)*n.x + (U_j[0] - U_i[0]) * (c_ij.x/r_ij));
+        gradientU[0][1] += (l_i_j/A) * (((U_i[1] + U_j[1])/2.0)*n.x + (U_j[1] - U_i[1]) * (c_ij.x/r_ij));
+        gradientU[0][2] += (l_i_j/A) * (((U_i[2] + U_j[2])/2.0)*n.x + (U_j[2] - U_i[2]) * (c_ij.x/r_ij));
+        gradientU[0][3] += (l_i_j/A) * (((U_i[3] + U_j[3])/2.0)*n.x + (U_j[3] - U_i[3]) * (c_ij.x/r_ij));
+
+        gradientU[1][0] += (l_i_j/A) * (((U_i[0] + U_j[0])/2.0)*n.y + (U_j[0] - U_i[0]) * (c_ij.y/r_ij));
+        gradientU[1][1] += (l_i_j/A) * (((U_i[1] + U_j[1])/2.0)*n.y + (U_j[1] - U_i[1]) * (c_ij.y/r_ij));
+        gradientU[1][2] += (l_i_j/A) * (((U_i[2] + U_j[2])/2.0)*n.y + (U_j[2] - U_i[2]) * (c_ij.y/r_ij));
+        gradientU[1][3] += (l_i_j/A) * (((U_i[3] + U_j[3])/2.0)*n.y + (U_j[3] - U_i[3]) * (c_ij.y/r_ij));
+
+    }
+
+    // do slope limiting
+    array<array<double, 4>, 2> limited_gradientU;
+    if (grid->cells[i].seed.x < 0.03 || grid->cells[i].seed.x > 0.97 || grid->cells[i].seed.y < 0.03 || grid->cells[i].seed.y > 0.97 || (grid->cells[i].seed.x < 0.1 && grid->cells[i].seed.y < 0.1)) {
+        limited_gradientU = slope_limit_tvd(gradientU, i, U_i, boundary_cond);
+    } else {
+        limited_gradientU = slope_limit_maxmin(gradientU, i, U_i, boundary_cond);
+    }
+
+    //array<array<double, 4>, 2> limited_gradientU = slope_limit_maxmin(gradientU, i, U_i, boundary_cond);
+    //limited_gradientU = slope_limit_tvd(gradientU, i, U_i, boundary_cond);
+
+    // return gradient which now can be used to extrapolate the values
+    return limited_gradientU;
+
+}
+
+
+// slope limit euler gradient (like in AREPO -> not TVD)
+template <typename CellType>
+array<array<double, 4>, 2> Solver<CellType>::slope_limit_maxmin(array<array<double, 4>, 2> gradientU, int i, array<double, 4> U_i, int boundary_cond) {
+
+    // slope limiting
+    array<double, 4> a_i = {1.0, 1.0, 1.0, 1.0};
+
+    // go through all edges to calculate correct a_i
+    for (int j = 0; j < grid->cells[i].edges.size(); j++) {
+        // calculate delta_ij
+        array<double, 4> delta_ij;
+        Point f_mid = get_f_mid(i, j);
+        Point centroid = grid->cells[i].centroid;
+
+        for (int k = 0; k < 4; k++) {
+            delta_ij[k] = gradientU[0][k] * (f_mid.x - centroid.x) + gradientU[1][k] * (f_mid.y - centroid.y);
+        }
+
+        // calculate psi_ij
+        array<double, 4> psi_ij;
+
+        for (int k = 0; k < 4; k++) {
+
+            if (delta_ij[k] > 0) {
+
+                double psi_max = U_i[k];
+
+                //loop through all edges to maximise psi
+                for (int l = 0; l < grid->cells[i].edges.size(); l++) {
+                    // maximise U_j's
+                    array<double, 4> U_j = puvE_to_U(get_puvE_j(U_to_puvE(U_i), i, l, boundary_cond));
+                    if (U_j[k] > psi_max) {psi_max = U_j[k];}
+                }
+
+                psi_ij[k] = (psi_max - U_i[k])/delta_ij[k];
+
+            } else if (delta_ij[k] < 0) {
+
+                double psi_min = U_i[k];
+
+                // loop through all edges to minimize psi
+                for (int l = 0; l < grid->cells[i].edges.size(); l++) {
+
+                    // minimize U_j's
+                    array<double, 4> U_j = puvE_to_U(get_puvE_j(U_to_puvE(U_i), i, l, boundary_cond));
+                    if (U_j[k] < psi_min) {psi_min = U_j[k];}
+                }
+
+                psi_ij[k] = (psi_min - U_i[k])/delta_ij[k];
+
+            } else if (delta_ij[k] == 0) {
+                psi_ij[k] = 1;
+            }
+        }
+
+        // update a_i (minimizing a_i = min_{over j}(1, psi_ij))
+        for (int k = 0; k < 4; k++) {
+            if (psi_ij[k] < a_i[k]) {a_i[k] = psi_ij[k];}
+        }
+    }
+
+    // apply slope limiters
+    gradientU[0][0] = a_i [0] * gradientU[0][0];
+    gradientU[1][0] = a_i [0] * gradientU[1][0];
+    gradientU[0][1] = a_i [1] * gradientU[0][1];
+    gradientU[1][1] = a_i [1] * gradientU[1][1];
+    gradientU[0][2] = a_i [2] * gradientU[0][2];
+    gradientU[1][2] = a_i [2] * gradientU[1][2];
+    gradientU[0][3] = a_i [3] * gradientU[0][3];
+    gradientU[1][3] = a_i [3] * gradientU[1][3];
+
+    // return slope limited gradient
+    return gradientU;
+}
+
+
+// slope limit euler gradient (like in TESS -> is TVD)
+template <typename CellType>
+array<array<double, 4>, 2> Solver<CellType>::slope_limit_tvd(array<array<double, 4>, 2> gradientU, int i, array<double, 4> U_i, int boundary_cond, double theta) {
+
+    theta = 0.4;
+
+    // slope limiting
+    array<double, 4> a_i = {1.0, 1.0, 1.0, 1.0};
+
+    // go through all edges to calculate correct a_i
+    for (int j = 0; j < grid->cells[i].edges.size(); j++) {
+        // calculate delta_ij
+        array<double, 4> delta_ij;
+        Point f_mid = get_f_mid(i, j);
+        Point centroid = grid->cells[i].centroid;
+
+        for (int k = 0; k < 4; k++) {
+            delta_ij[k] = gradientU[0][k] * (f_mid.x - centroid.x) + gradientU[1][k] * (f_mid.y - centroid.y);
+        }
+
+        // calculate psi_ij
+        array<double, 4> psi_ij;
+
+        for (int k = 0; k < 4; k++) {
+
+            if (delta_ij[k] > 0) {
+
+                array<double, 4> U_j = puvE_to_U(get_puvE_j(U_to_puvE(U_i), i, j, boundary_cond));
+                psi_ij[k] = max(theta*(U_j[k] - U_i[k])/delta_ij[k], 0.0);
+
+            } else if (delta_ij[k] < 0) {
+
+                array<double, 4> U_j = puvE_to_U(get_puvE_j(U_to_puvE(U_i), i, j, boundary_cond));
+                psi_ij[k] = max(theta*(U_j[k] - U_i[k])/delta_ij[k], 0.0);
+
+            } else if (delta_ij[k] == 0) {
+                psi_ij[k] = 1;
+            }
+        }
+
+        // update a_i (minimizing a_i = min_{over j}(1, psi_ij))
+        for (int k = 0; k < 4; k++) {
+            if (psi_ij[k] < a_i[k]) {a_i[k] = psi_ij[k];}
+        }
+    }
+
+    // apply slope limiters
+    gradientU[0][0] = a_i [0] * gradientU[0][0];
+    gradientU[1][0] = a_i [0] * gradientU[1][0];
+    gradientU[0][1] = a_i [1] * gradientU[0][1];
+    gradientU[1][1] = a_i [1] * gradientU[1][1];
+    gradientU[0][2] = a_i [2] * gradientU[0][2];
+    gradientU[1][2] = a_i [2] * gradientU[1][2];
+    gradientU[0][3] = a_i [3] * gradientU[0][3];
+    gradientU[1][3] = a_i [3] * gradientU[1][3];
+
+    // return slope limited gradient
+    return gradientU;
+}
+
+
+// linearly extrapolate cell i states in space and time towards boundary j
+template <typename CellType>
+array<double, 4> Solver<CellType>::linear_extrapolate_euler(array<double, 4> puvE_i_n, vector<array<array<double, 4>, 2>> &gradients, double dt, int i, int j) {
+
+    // U_i
+    double rho = puvE_i_n[0];
+    double u = puvE_i_n[1];
+    double v = puvE_i_n[2];
+    double E = puvE_i_n[3];
+    double P = get_P_ideal_gas(puvE_i_n);
+    array<double, 4> U_i = puvE_to_U(puvE_i_n);
+    array<array<double, 4>, 2> gradient = gradients[i];
+
+    // d
+    Point f_mid = get_f_mid(i, j);
+    Point centroid = grid->cells[i].centroid;
+    Point d = Point(f_mid.x - centroid.x, f_mid.y - centroid.y);
+
+    // U_i_ext
+    array<double, 4> U_i_ext = {
+                                    U_i[0] + (d.x * gradient[0][0] - (dt/2.0)*(gradient[0][1]))                                                                 + (d.y * gradient[1][0] - (dt/2.0)*(gradient[1][2])),
+                                    U_i[1] + (d.x * gradient[0][1] - (dt/2.0)*((-1*u*u*gradient[0][0]) + (2*u*gradient[0][1])))                                 + (d.y * gradient[1][1] - (dt/2.0)*((-1*u*v*gradient[1][0]) + (v*gradient[1][1]) + (u*gradient[1][2]))),
+                                    U_i[2] + (d.x * gradient[0][2] - (dt/2.0)*((-1*u*v*gradient[0][0]) + (v*gradient[0][1]) + (u*gradient[0][2])))              + (d.y * gradient[1][2] - (dt/2.0)*((-1*v*v*gradient[1][0]) + (2*v*gradient[1][2]))),
+                                    U_i[3] + (d.x * gradient[0][3] - (dt/2.0)*(((E+P)/(rho))*((-1*u*gradient[0][0]) + gradient[0][1]) + (u*gradient[0][3])))    + (d.y * gradient[1][3] - (dt/2.0)*(((E+P)/(rho))*((-1*v*gradient[1][0]) + gradient[1][2]) + (v*gradient[1][3])))
+                               };
+
+    return U_to_puvE(U_i_ext);
+}
+
+
+// linearly extrapolate cell i's neighbours states in space and time towards boundary j
+template <typename CellType>
+array<double, 4> Solver<CellType>::linear_extrapolate_neighbour_euler(int i, int j, array<double, 4> puvE_j_n, array<double, 4> puvE_i_ext, vector<array<array<double, 4>, 2>> &gradients, double dt, int boundary_cond) {
+
+    if (grid->cells[i].edges[j].is_boundary == false) {
+
+        // index_j is the index of the Cell_j in the cell list
+        int index_j = grid->cells[i].edges[j].neighbour->index;
+        // index_i is the neighbour index of Cell_i inside of Cell_j
+        int index_i;
+
+        // get index_i by looping through all edges of Cell_j
+        for (int k = 0; k < grid->cells[index_j].edges.size(); k++) {
+            if (grid->cells[index_j].edges[k].is_boundary == false) {
+                if (grid->cells[index_j].edges[k].neighbour->index == i) {
+                    index_i = k;
+                }
+            }
+        }
+
+        return linear_extrapolate_euler(puvE_j_n, gradients, dt, index_j, index_i);
+    } else {
+        return get_puvE_j(puvE_i_ext, i, j, boundary_cond);
+    }
+
+}
+
+
+
+// GET functions and converters -------------------------------------------------------------------
 // returns huv_j vector for given i,j managing boundary handling
 template <typename CellType>
 array<double, 3> Solver<CellType>::get_huv_j(array<double, 3> huv_i, int i, int j, int boundary_cond) {
@@ -798,7 +1067,7 @@ array<double, 4> Solver<CellType>::get_puvE_j(array<double, 4> puvE_i, int i, in
     // values of other cell (initalized with sink boundaries for boundary cond = 1)
     array<double, 4> puvE_j = {puvE_i[0], boundary_cond * puvE_i[1], boundary_cond * puvE_i[2], puvE_i[3]};
     // if reflective boundary change velocities accordingly
-    if (boundary_cond == -1) {
+    if (boundary_cond == -1 || (grid->cells[i].seed.x > 0.1 && grid->cells[i].seed.x < 0.9 && grid->cells[i].seed.y > 0.1 && grid->cells[i].seed.y < 0.9)) {
         Point n = get_normal_vec(grid->cells[i].edges[j].a, grid->cells[i].edges[j].b);
 
         puvE_j[1] = puvE_i[1] - 2*(puvE_i[1]*n.x + puvE_i[2]*n.y)*n.x;
@@ -876,7 +1145,7 @@ array<double, 3> Solver<CellType>::huv_to_U(array<double, 3> huv) {
 }
 
 
-// convert huv into U vector
+// convert U into huv vector
 template <typename CellType>
 array<double, 3> Solver<CellType>::U_to_huv(array<double, 3> U) {
 
@@ -884,6 +1153,24 @@ array<double, 3> Solver<CellType>::U_to_huv(array<double, 3> U) {
     return huv;
 }
 
+
+// convert puveE into U vector
+template <typename CellType>
+array<double, 4> Solver<CellType>::puvE_to_U(array<double, 4> puvE) {
+
+    array<double, 4> U = {puvE[0], puvE[0]*puvE[1], puvE[0]*puvE[2], puvE[3]};\
+    return U;
+}
+    
+
+// convert U into puveE vector
+template <typename CellType>    
+array<double, 4> Solver<CellType>::U_to_puvE(array<double, 4> U) {
+
+    array<double, 4> puvE = {U[0], U[1]/U[0], U[2]/U[0], U[3]};
+    return puvE;
+}
+    
 
 template <typename CellType>
 Solver<CellType>::~Solver() {};

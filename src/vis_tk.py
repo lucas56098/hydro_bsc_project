@@ -227,9 +227,9 @@ def animation1D(filerange, filenames, labels, sort_option, quantity_index, fps =
 
             # sort and plot by x, y, diagonal or filterd diagonal
             if sort_option[i] == 'y':
-                plt.scatter(seed[:, 1], Q[:, quantity_index[i]], label= labels[i], s=0.9)
+                plt.scatter(seed[:, 1], Q[:, quantity_index[i]], label= labels[i], s=2)
             elif sort_option[i] == 'x':
-                plt.scatter(seed[:, 0], Q[:, quantity_index[i]], label= labels[i], s=2)
+                plt.scatter(seed[:, 0], Q[:, quantity_index[i]], label= labels[i], s=3)
             elif sort_option[i] == 'diagonal':
                 # plot a projection onto diagonal here
                 plt.scatter(((1/np.sqrt(2)) * (seed[:, 0] + seed[:, 1])), Q[:, quantity_index[i]], label= labels[i], s=0.8)
