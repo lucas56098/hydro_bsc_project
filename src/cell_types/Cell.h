@@ -1,6 +1,8 @@
 #include "Point.h"
 #include <vector>
+#include "../Eigen/Dense"
 using namespace std;
+using namespace Eigen;
 
 #ifndef Cell_h
 #define Cell_h
@@ -63,6 +65,10 @@ public:
 
     virtual double get_P() const {
         throw runtime_error("P is not defined for base Cell");
+    }
+
+    virtual VectorXd get_coeff() const {
+        throw runtime_error("coeff is not defined for base Cell");
     }
 
 

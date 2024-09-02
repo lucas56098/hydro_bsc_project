@@ -17,7 +17,9 @@
 #include <random>
 
 template <typename CellType>
-Mesh<CellType>::Mesh() {}
+Mesh<CellType>::Mesh(int N_bfunc) {
+    N_basisfunc = N_bfunc;
+}
 
 
 // PRIVATE Helper functions for Point Generation --------------------------------------------------
@@ -292,7 +294,11 @@ void Mesh<CellType>::generate_uniform_grid2D(Point start, int n_hor, int n_vert,
             edgesin[3].length = distx;
 
             // push back new cell in cells vector
-            cells.emplace_back(seedin, edgesin);
+            if constexpr (is_same_v<CellType, DG_Q_Cell> == true) {
+                cells.emplace_back(seedin, edgesin, N_basisfunc);
+            } else {
+                cells.emplace_back(seedin, edgesin);
+            }
 
             // set centroid
             cells[cells.size()-1].centroid = seedin;
@@ -382,8 +388,12 @@ void Mesh<CellType>::generate_vmesh2D(vector<Point> pts, bool repeating, bool po
 
         }
 
-        // push back new cell in cells
-        cells.emplace_back(seedin, edgesin);
+        // push back new cell in cells vector
+        if constexpr (is_same_v<CellType, DG_Q_Cell> == true) {
+            cells.emplace_back(seedin, edgesin, N_basisfunc);
+        } else {
+            cells.emplace_back(seedin, edgesin);
+        }
 
         // set centroid
         cells[i].centroid = vmesh.vcells[i].get_centroid();
@@ -586,7 +596,11 @@ void Mesh<CellType>::generate_vmesh1D(vector<Point> pts, bool repeating) {
         edgesin[3].length = distl + distr;
 
         // push back new cell in cells vector
-        cells.emplace_back(seedin, edgesin);
+        if constexpr (is_same_v<CellType, DG_Q_Cell> == true) {
+            cells.emplace_back(seedin, edgesin, N_basisfunc);
+        } else {
+            cells.emplace_back(seedin, edgesin);
+        }
 
         cells[cells.size()-1].centroid = seedin;
 
@@ -776,7 +790,7 @@ void Mesh<CellType>::initialize_kelvin_helmholtz() {
 
 // function to initalize a rayleigh taylor instability on the mesh
 template <typename CellType>
-void Mesh<CellType>::initialize_rayleigh_taylor() {
+void Mesh<CellType>::initialize_rayleigh_taylor(Point g) {
 
     // make sure that the cell type is correct
     if constexpr (is_same_v<CellType, Euler_Cell> == false) {
@@ -789,16 +803,20 @@ void Mesh<CellType>::initialize_rayleigh_taylor() {
 
         double pi = 3.14159265358979323846;
 
-        if (cells[i].seed.y > 0.5 - 0.1*cos(pi*2*cells[i].seed.x)) {
+
+
+        if (cells[i].seed.y > 0.5 + 0.03*cos(pi*2*cells[i].seed.x*2)) {
             cells[i].rho = 1;
             cells[i].u = 0;
             cells[i].v = 0;
-            cells[i].E = (1/(cells[i].gamma - 1)) + 0.5*cells[i].rho*(cells[i].u*cells[i].u);
+            double P = 1 + cells[i].rho * g.y * (cells[i].seed.y - 0.5);
+            cells[i].E = (P/(cells[i].gamma - 1)) + 0.5*cells[i].rho*(cells[i].u*cells[i].u);
         } else {
             cells[i].rho = 0.2;
             cells[i].u = 0;
             cells[i].v = 0;
-            cells[i].E = (1/(cells[i].gamma - 1)) + 0.5*cells[i].rho*(cells[i].u*cells[i].u);
+            double P = 1 + cells[i].rho * g.y * (cells[i].seed.y - 0.5);
+            cells[i].E = (P/(cells[i].gamma - 1)) + 0.5*cells[i].rho*(cells[i].u*cells[i].u);
         }
     }
   
@@ -1076,6 +1094,14 @@ void Mesh<CellType>::save_mesh(int file_nr, string name, double dt) {
         // if cell type is Euler_cell save rho, u, v, E, P
         if constexpr(is_same_v<CellType, Euler_Cell>) {
             output_file << cells[i].rho << "," << cells[i].u << "," << cells[i].v << "," << cells[i].E << "," << cells[i].get_P();
+        }
+
+        // if cell type is DG_Q_Cell save all Q out of vector
+        if constexpr(is_same_v<CellType, DG_Q_Cell>) {
+            for (int l = 0; l < N_basisfunc - 1; l++) {
+                output_file << cells[i].Q(l) << ",";
+            }
+            output_file << cells[i].Q(N_basisfunc - 1);
         }
 
         output_file << endl;

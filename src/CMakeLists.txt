@@ -14,6 +14,7 @@ add_executable(hydro
     main.cpp 
     Mesh.tpp
     Solver.tpp
+    DG_Solver.tpp
 
     # different cell types
     cell_types/Point.cpp 
@@ -22,6 +23,7 @@ add_executable(hydro
     cell_types/Conway_Cell.cpp
     cell_types/SWE_Cell.cpp
     cell_types/Euler_Cell.cpp
+    cell_types/DG_Q_Cell.cpp
 
     # further utilities
     utilities/Functions.cpp

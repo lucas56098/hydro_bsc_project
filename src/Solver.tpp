@@ -822,14 +822,14 @@ array<array<double, 4>, 2> Solver<CellType>::calc_euler_gradients(int i, int bou
     }
 
     // do slope limiting
-    array<array<double, 4>, 2> limited_gradientU;
-    if (grid->cells[i].seed.x < 0.03 || grid->cells[i].seed.x > 0.97 || grid->cells[i].seed.y < 0.03 || grid->cells[i].seed.y > 0.97 || (grid->cells[i].seed.x < 0.1 && grid->cells[i].seed.y < 0.1)) {
-        limited_gradientU = slope_limit_tvd(gradientU, i, U_i, boundary_cond);
-    } else {
-        limited_gradientU = slope_limit_maxmin(gradientU, i, U_i, boundary_cond);
-    }
+    //array<array<double, 4>, 2> limited_gradientU;
+    //if (grid->cells[i].seed.x < 0.03 || grid->cells[i].seed.x > 0.97 || grid->cells[i].seed.y < 0.03 || grid->cells[i].seed.y > 0.97 || (grid->cells[i].seed.x < 0.1 && grid->cells[i].seed.y < 0.1)) {
+    //    limited_gradientU = slope_limit_tvd(gradientU, i, U_i, boundary_cond);
+    //} else {
+    //    limited_gradientU = slope_limit_maxmin(gradientU, i, U_i, boundary_cond);
+    //}
 
-    //array<array<double, 4>, 2> limited_gradientU = slope_limit_maxmin(gradientU, i, U_i, boundary_cond);
+    array<array<double, 4>, 2> limited_gradientU = slope_limit_maxmin(gradientU, i, U_i, boundary_cond);
     //limited_gradientU = slope_limit_tvd(gradientU, i, U_i, boundary_cond);
 
     // return gradient which now can be used to extrapolate the values

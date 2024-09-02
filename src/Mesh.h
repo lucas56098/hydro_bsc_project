@@ -6,6 +6,7 @@
 #include "cell_types/Conway_Cell.h"
 #include "cell_types/SWE_Cell.h"
 #include "cell_types/Euler_Cell.h"
+#include "cell_types/DG_Q_Cell.h"
 #include "vmp/VoronoiMesh.h"
 
 #ifndef Mesh_h
@@ -15,7 +16,7 @@ template <typename CellType>
 class Mesh {
 
 public:
-    Mesh<CellType>();
+    Mesh<CellType>(int N_bfunc = 1);
     ~Mesh<CellType>();
 
     // cell list
@@ -24,6 +25,7 @@ public:
     bool is_cartesian = false;
     double n_horizontal;
     double n_vertical;
+    int N_basisfunc;
     
     // generate mesh
     void generate_grid(bool cartesian, bool is_1D, int N_row, int lloyd_iterations = 0, bool repeating = false, bool structure = false);
@@ -36,7 +38,7 @@ public:
     void initialize_SWE_dam_break(double h1 = 2.0, double h2 = 1.0, double pos = 0.5, int dam_break_type = 0);
     void initialize_euler_shock_tube();
     void initialize_kelvin_helmholtz();
-    void initialize_rayleigh_taylor();
+    void initialize_rayleigh_taylor(Point g);
     void initialize_const_flow(Point v);
     void initialize_quad_shock();
 

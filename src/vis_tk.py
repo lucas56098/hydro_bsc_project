@@ -62,7 +62,7 @@ def process_file(file_name, sort_option = 'none', print_option = False):
 
 
 # function to do a 2D plot of the mesh with the colormap according to Q
-def plot_2D(polygons, Q, cmap = 'viridis', vmin = 0, vmax = 1, edgecolor = 'face', cbar_label = 'Q_value', title = '', xlabel = "", ylabel = "", save = True, save_name = 'image2D', figsize = (12, 10), logscale = False, logmin = 1e-18):
+def plot_2D(polygons, Q, cmap = 'viridis', vmin = 0, vmax = 1, edgecolor = 'face', cbar_label = 'Q_value', title = '', xlabel = "", ylabel = "", save = True, save_name = 'image2D', figsize = (12, 10), logscale = False, logmin = 1e-18, xlim = (0, 1), ylim = (0, 1)):
 
     # optionally prepare Q for logscale
     if logscale:
@@ -76,8 +76,8 @@ def plot_2D(polygons, Q, cmap = 'viridis', vmin = 0, vmax = 1, edgecolor = 'face
     
     # add collection to axis and set axis options
     ax.add_collection(collection)
-    ax.set_xlim(0, 1)
-    ax.set_ylim(0, 1)
+    ax.set_xlim(xlim[0], xlim[1])
+    ax.set_ylim(ylim[0], ylim[1])
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
 
@@ -92,6 +92,66 @@ def plot_2D(polygons, Q, cmap = 'viridis', vmin = 0, vmax = 1, edgecolor = 'face
     # optional save plot
     if save:
         plt.savefig('figures/' + save_name + '.png')
+
+    plt.show()
+
+# function to do a 2D plot of the mesh with the colormap according to Q
+def plot_2Dx3(polygons0, polygons1, polygons2, Q0, Q1, Q2, cmap = 'viridis', vmin = 0, vmax = 1, edgecolor = 'face', cbar_label = 'Q_value', title = '', xlabel = "", ylabel = "", save = True, save_name = 'image2D', figsize = (12, 10), logscale = False, logmin = 1e-18, xlim = (0, 1), ylim = (0, 1)):
+
+    # optionally prepare Q for logscale
+    if logscale:
+        Q = np.where(np.isinf(Q), -np.inf, np.log10(np.maximum(Q, np.zeros(len(Q)) + logmin)))
+
+    # define plot, norm, poly collection
+    fig, ax = plt.subplots(1, 3, figsize = figsize)
+    norm = mcolors.Normalize(vmin=vmin, vmax=vmax)
+    collection = PolyCollection(polygons0, array=Q0, cmap=cmap, norm=norm, edgecolor=edgecolor) # edgecolor = 'none' / 'face'
+    print('finished PolyCollection')
+    
+    # add collection to axis and set axis options
+    ax[0].add_collection(collection)
+    ax[0].set_xlim(xlim[0], xlim[1])
+    ax[0].set_ylim(ylim[0], ylim[1])
+    ax[0].set_xlabel(xlabel)
+    ax[0].set_ylabel(ylabel)
+    ax[0].set_title("t = 0")
+
+    collection2 = PolyCollection(polygons1, array=Q1, cmap=cmap, norm=norm, edgecolor=edgecolor) # edgecolor = 'none' / 'face'
+    print('finished PolyCollection')
+
+    ax[1].add_collection(collection2)
+    ax[1].set_xlim(xlim[0], xlim[1])
+    ax[1].set_ylim(ylim[0], ylim[1])
+    ax[1].set_xlabel(xlabel)
+    ax[1].set_ylabel(ylabel)
+    ax[1].set_title("t = 1")
+
+    collection3 = PolyCollection(polygons2, array=Q2, cmap=cmap, norm=norm, edgecolor=edgecolor) # edgecolor = 'none' / 'face'
+    print('finished PolyCollection')
+
+    ax[2].add_collection(collection3)
+    ax[2].set_xlim(xlim[0], xlim[1])
+    ax[2].set_ylim(ylim[0], ylim[1])
+    ax[2].set_xlabel(xlabel)
+    ax[2].set_ylabel(ylabel)
+    ax[2].set_title("t = 1.6")
+
+    for i in [0, 1, 2]:
+        ax[i].set_xticks([])
+        ax[i].set_yticks([])
+
+    # set colorbar
+    cbar = fig.colorbar(collection, ax=ax, orientation='horizontal', aspect = 40, pad = 0.02)
+    cbar.set_label(cbar_label)
+    
+    # optional set title
+    if title != '':
+        plt.title(title)
+
+    # optional save plot
+    if save:
+        #plt.savefig('figures/' + save_name + '.png')
+        plt.savefig('figures/' + save_name + '.pdf')
 
     plt.show()
 
@@ -202,7 +262,7 @@ def plot_1D(filenames, labels, sort_option, title = '', x_label = '', y_label = 
 ## analytic solution to 1D advection of step function
 def analytic_Q(x, t, velocity, a, b):
     dx = t * velocity
-    if (x > dx + a and x<b+dx):
+    if (x >= dx + a and x<b+dx):
         return 1
     else:
         return 0
