@@ -17,6 +17,8 @@ public:
     Solver<CellType>(Mesh<CellType>* gridin);
     ~Solver<CellType>();
 
+    double time_at_the_moment = 0;
+
     // equation solvers
     void diffusion_like(double dt);
     void conway();

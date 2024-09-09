@@ -18,13 +18,25 @@ public:
     ~DG_Solver<CellType>(); 
 
     void advection1D(double dt, double slope_limited = 0, double u = 1);
-    double minmod(double a, double b, double c);
-    double get_element_average_adv1D(int index, vector<VectorXd>& new_Qs);
+    void advection2D_1(double dt, double slope_limited = 0, Point u = Point(0.5, 0.5));
 
 private:
 
     // grid to solve the equations on
     Mesh<CellType>* grid;
+
+    // helper functions for 1D scalar advection
+    double minmod(double a, double b, double c);
+    double get_element_average_adv1D(int index, vector<VectorXd>& new_Qs);
+    vector<VectorXd> slope_limit_adv1D(vector<VectorXd> new_Qs, double slope_limited);
+
+    // helper functions for cartesian 2D scalar advection 
+    MatrixXd get_F_hat_A_adv2D();
+    MatrixXd get_F_hat_B_adv2D();
+    MatrixXd get_F_hat_C_adv2D();
+    MatrixXd get_F_hat_D_adv2D();
+    vector<VectorXd> slope_limit_adv2D(vector<VectorXd> new_Qs, double slope_limited);
+
 
 };
 

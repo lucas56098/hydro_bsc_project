@@ -88,9 +88,8 @@ vector<Point> Mesh<CellType>::generate_seed_points(int N, bool fixed_random_seed
     eng = default_random_engine(random_seed);
     uniform_real_distribution<double> distr(min, max);
     
-    
-    // optional point density for KH-instability
     /*
+    // optional point density for KH-instability
     uniform_real_distribution<int> distra(min, max);
     normal_distribution<double> distr1(0.7, 0.03);
     normal_distribution<double> distr2(0.3, 0.03);
@@ -110,26 +109,27 @@ vector<Point> Mesh<CellType>::generate_seed_points(int N, bool fixed_random_seed
         double y = std::max(std::min(a, 0.9999), 0.0001) + 0.0009999999 * distr(eng);
 
         points.push_back(Point(x, y));
-    }
-    */
+    }*/
+    
 
 
     // optional point density for quad shock
-    /*uniform_real_distribution<int> distra(1, 2);
+    uniform_real_distribution<int> distra(1, 2);
     for (int i = 0; i < N; i++) {
         double x;
         double y;
-        double scale = 0.2*distr(eng) + 0.45;
-        if (distra(eng) % 2 == 0) {
-            x = scale*distr(eng);
-            y = scale*distr(eng);
+        double scalea = 0.1*distr(eng) + 0.65;
+        double scaleb = 0.2*distr(eng) + 0.65;
+        if (distra(eng) % 3 != 0) {
+            x = scalea*distr(eng) + 0.20;
+            y = scaleb*distr(eng) + 0.05;
         } else {
             x = distr(eng);
             y = distr(eng);
         }
 
         points.push_back(Point(x,y));
-    }*/
+    }
 
     /*
     // optional point density for circle
@@ -150,12 +150,12 @@ vector<Point> Mesh<CellType>::generate_seed_points(int N, bool fixed_random_seed
 
 
     // generate random coordinates for Points
-    for (int i = 0; i < N; ++i) {
-        double x = distr(eng);
-        double y = distr(eng);
+    //for (int i = 0; i < N; ++i) {
+    //    double x = distr(eng);
+    //    double y = distr(eng);
 
-        points.push_back(Point(x, y));
-    }
+    //    points.push_back(Point(x, y));
+    //}
 
     // if this is true the points will be sorted
     if (sort_pts) {
@@ -218,7 +218,7 @@ void Mesh<CellType>::generate_grid(bool cartesian, bool is_1D, int N_row, int ll
             vector<Point> pts = generate_seed_points(N_row * N_row, true, 0, 1, 42, true, 100, 1);
             if (lloyd_iterations != 0) {do_lloyd_iterations(&pts, lloyd_iterations);};
             int nr;
-            if (structure) {nr = add_struct(&pts, 0.0003, 0.003, "struct");}
+            if (structure) {nr = add_struct(&pts, 0.0001, 0.01, "struct");}
 
             this->generate_vmesh2D(pts, repeating, !structure);
             is_cartesian = false;
@@ -360,6 +360,7 @@ void Mesh<CellType>::generate_vmesh2D(vector<Point> pts, bool repeating, bool po
     // generate vmesh
     VoronoiMesh vmesh(pts);
     vmesh.do_point_insertion();
+    //vmesh.construct_mesh();
     if (point_insertion) {
         //vmesh.do_point_insertion();
     } else {
@@ -983,7 +984,6 @@ int Mesh<CellType>::add_struct(vector<Point>* pts, double dist_a, double safety_
                                     ((edge_vectors[i].x)/(sqrt(edge_vectors[i].x*edge_vectors[i].x + edge_vectors[i].y*edge_vectors[i].y))));
     }
     vector<Point> inner_points;
-    inner_points.emplace_back(0.3, 0.5);
     vector<Point> outer_points;
     for (int i = 0; i< normal_vectors.size(); i++) {
         inner_points.emplace_back((midpoints[i].x - dist_a * normal_vectors[i].x), (midpoints[i].y - dist_a * normal_vectors[i].y));

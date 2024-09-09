@@ -822,14 +822,20 @@ array<array<double, 4>, 2> Solver<CellType>::calc_euler_gradients(int i, int bou
     }
 
     // do slope limiting
-    //array<array<double, 4>, 2> limited_gradientU;
+    array<array<double, 4>, 2> limited_gradientU;
     //if (grid->cells[i].seed.x < 0.03 || grid->cells[i].seed.x > 0.97 || grid->cells[i].seed.y < 0.03 || grid->cells[i].seed.y > 0.97 || (grid->cells[i].seed.x < 0.1 && grid->cells[i].seed.y < 0.1)) {
     //    limited_gradientU = slope_limit_tvd(gradientU, i, U_i, boundary_cond);
     //} else {
     //    limited_gradientU = slope_limit_maxmin(gradientU, i, U_i, boundary_cond);
     //}
+    //limited_gradientU = slope_limit_maxmin(gradientU, i, U_i, boundary_cond);
+    if (time_at_the_moment < 1.7) {
+        limited_gradientU = slope_limit_tvd(gradientU, i, U_i, boundary_cond);
+    } else {
+        limited_gradientU = slope_limit_maxmin(gradientU, i, U_i, boundary_cond);
+    }
 
-    array<array<double, 4>, 2> limited_gradientU = slope_limit_maxmin(gradientU, i, U_i, boundary_cond);
+    //array<array<double, 4>, 2> limited_gradientU = slope_limit_maxmin(gradientU, i, U_i, boundary_cond);
     //limited_gradientU = slope_limit_tvd(gradientU, i, U_i, boundary_cond);
 
     // return gradient which now can be used to extrapolate the values
@@ -918,7 +924,7 @@ array<array<double, 4>, 2> Solver<CellType>::slope_limit_maxmin(array<array<doub
 template <typename CellType>
 array<array<double, 4>, 2> Solver<CellType>::slope_limit_tvd(array<array<double, 4>, 2> gradientU, int i, array<double, 4> U_i, int boundary_cond, double theta) {
 
-    theta = 0.4;
+    theta = 1;
 
     // slope limiting
     array<double, 4> a_i = {1.0, 1.0, 1.0, 1.0};
@@ -1072,6 +1078,14 @@ array<double, 4> Solver<CellType>::get_puvE_j(array<double, 4> puvE_i, int i, in
 
         puvE_j[1] = puvE_i[1] - 2*(puvE_i[1]*n.x + puvE_i[2]*n.y)*n.x;
         puvE_j[2] = puvE_i[2] - 2*(puvE_i[1]*n.x + puvE_i[2]*n.y)*n.y;
+    }
+
+    // activate this if you want a constant flow like in a wind tunnel
+    if (grid->cells[i].seed.x < 0.01) {
+        puvE_j[0] = 1;
+        puvE_j[1] = 0.3;
+        puvE_j[2] = 0;
+        puvE_j[3] = 1;
     }
 
     // get actual puvE values if its not a boundary

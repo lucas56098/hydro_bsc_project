@@ -93,7 +93,7 @@ def plot_2D(polygons, Q, cmap = 'viridis', vmin = 0, vmax = 1, edgecolor = 'face
     if save:
         plt.savefig('figures/' + save_name + '.png')
 
-    plt.show()
+    #plt.show()
 
 # function to do a 2D plot of the mesh with the colormap according to Q
 def plot_2Dx3(polygons0, polygons1, polygons2, Q0, Q1, Q2, cmap = 'viridis', vmin = 0, vmax = 1, edgecolor = 'face', cbar_label = 'Q_value', title = '', xlabel = "", ylabel = "", save = True, save_name = 'image2D', figsize = (12, 10), logscale = False, logmin = 1e-18, xlim = (0, 1), ylim = (0, 1)):
@@ -156,6 +156,151 @@ def plot_2Dx3(polygons0, polygons1, polygons2, Q0, Q1, Q2, cmap = 'viridis', vmi
     plt.show()
 
 
+# function to do a 2D plot of the mesh with the colormap according to Q
+def plot_2Dx2(polygons0, polygons1, Q0, Q1, cmap='viridis', vmin=0, vmax=1, edgecolor1='face', edgecolor2='face', cbar_label='Q_value', 
+              subtitle1='', subtitle2='', xlabel="", ylabel="", save=True, save_name='image2D', figsize=(12, 10), logscale=False, 
+              logmin=1e-18, xlim=(0, 1), ylim=(0, 1)):
+
+    # optionally prepare Q for logscale
+    if logscale:
+        Q0 = np.where(np.isinf(Q0), -np.inf, np.log10(np.maximum(Q0, np.zeros(len(Q0)) + logmin)))
+        Q1 = np.where(np.isinf(Q1), -np.inf, np.log10(np.maximum(Q1, np.zeros(len(Q1)) + logmin)))
+
+    # define plot, norm, poly collection
+    fig, ax = plt.subplots(1, 2, figsize=figsize)
+    plt.subplots_adjust(wspace=0.05)
+    norm = mcolors.Normalize(vmin=vmin, vmax=vmax)
+
+    collection0 = PolyCollection(polygons0, array=Q0, cmap=cmap, norm=norm, edgecolor=edgecolor1)
+    print('finished PolyCollection')
+
+    ax[0].add_collection(collection0)
+    ax[0].set_xlim(xlim[0], xlim[1])
+    ax[0].set_ylim(ylim[0], ylim[1])
+    ax[0].set_xlabel(xlabel)
+    ax[0].set_ylabel(ylabel)
+    ax[0].set_title(subtitle1)
+
+    collection1 = PolyCollection(polygons1, array=Q1, cmap=cmap, norm=norm, edgecolor=edgecolor2)
+    print('finished PolyCollection')
+
+    ax[1].add_collection(collection1)
+    ax[1].set_xlim(xlim[0], xlim[1])
+    ax[1].set_ylim(ylim[0], ylim[1])
+    ax[1].set_xlabel(xlabel)
+    ax[1].set_ylabel(ylabel)
+    ax[1].set_title(subtitle2)
+
+    for i in [0, 1]:
+        ax[i].set_xticks([])
+        ax[i].set_yticks([])
+
+    cbar = fig.colorbar(collection0, ax=ax, orientation='vertical', pad=0.02)
+    cbar.set_label(cbar_label)
+
+    # optional save plot
+    if save:
+        plt.savefig('figures/' + save_name + '.pdf')
+        plt.savefig('figures/' + save_name + '.png', dpi = 500)
+
+    plt.show()
+
+
+# function to do a 2D plot of the mesh with the colormap according to Q
+def plot_2Dx3b(s0, s1, s2, q0, q1, q2, polygons0, polygons1, polygons2, Q0, Q1, Q2, cmap='viridis', vmin=0, vmax=1, 
+              edgecolor1='face', edgecolor2='face', edgecolor3='face', 
+              cbar_label='Q_value', subtitle1='', subtitle2='', subtitle3='', 
+              xlabel="", ylabel="", save=True, save_name='image2D', figsize=(18, 10), 
+              logscale=False, logmin=1e-18, xlim=(0, 1), ylim=(0, 1)):
+
+    # optionally prepare Q for logscale
+    if logscale:
+        Q0 = np.where(np.isinf(Q0), -np.inf, np.log10(np.maximum(Q0, np.zeros(len(Q0)) + logmin)))
+        Q1 = np.where(np.isinf(Q1), -np.inf, np.log10(np.maximum(Q1, np.zeros(len(Q1)) + logmin)))
+        Q2 = np.where(np.isinf(Q2), -np.inf, np.log10(np.maximum(Q2, np.zeros(len(Q2)) + logmin)))
+
+    # define plot, norm, poly collection
+    fig, ax = plt.subplots(1, 3, figsize=figsize)
+    plt.subplots_adjust(wspace=0.07)
+    norm1 = mcolors.Normalize(vmin=vmin[0], vmax=vmax[0])
+    norm2 = mcolors.Normalize(vmin=vmin[1], vmax=vmax[1])
+    norm3 = mcolors.Normalize(vmin=vmin[2], vmax=vmax[2])
+
+    collection0 = PolyCollection(polygons0, array=Q0, cmap=cmap, norm=norm1, edgecolor=edgecolor1)
+    print('finished PolyCollection')
+    
+    ax[0].add_collection(collection0)
+    ax[0].set_xlim(xlim[0], xlim[1])
+    ax[0].set_ylim(ylim[0], ylim[1])
+    ax[0].set_xlabel(xlabel)
+    ax[0].set_ylabel(ylabel)
+    ax[0].set_title(subtitle1)
+    
+    step = len(s0) // 2000
+    x_quiver0 = s0[::step, 0]
+    y_quiver0 = s0[::step, 1]
+    u_quiver0 = q0[::step, 2]
+    v_quiver0 = q0[::step, 3]
+
+    ax[0].quiver(x_quiver0, y_quiver0, u_quiver0, v_quiver0, angles='xy', scale_units='xy', scale=5, color='gray')
+
+    cbar0 = fig.colorbar(collection0, ax=ax[0], orientation='vertical', pad=0.02)
+    cbar0.set_label(cbar_label)
+
+    collection1 = PolyCollection(polygons1, array=Q1, cmap=cmap, norm=norm2, edgecolor=edgecolor2)
+    print('finished PolyCollection')
+    
+    ax[1].add_collection(collection1)
+    ax[1].set_xlim(xlim[0], xlim[1])
+    ax[1].set_ylim(ylim[0], ylim[1])
+    ax[1].set_xlabel(xlabel)
+    ax[1].set_ylabel(ylabel)
+    ax[1].set_title(subtitle2)
+
+    step = len(s1) // 2000
+    x_quiver1 = s1[::step, 0]
+    y_quiver1 = s1[::step, 1]
+    u_quiver1 = q1[::step, 2]
+    v_quiver1 = q1[::step, 3]
+
+    ax[1].quiver(x_quiver1, y_quiver1, u_quiver1, v_quiver1, angles='xy', scale_units='xy', scale=5, color='gray')
+
+    cbar1 = fig.colorbar(collection1, ax=ax[1], orientation='vertical', pad=0.02)
+    cbar1.set_label(cbar_label)
+
+    collection2 = PolyCollection(polygons2, array=Q2, cmap=cmap, norm=norm3, edgecolor=edgecolor3)
+    print('finished PolyCollection')
+
+    ax[2].add_collection(collection2)
+    ax[2].set_xlim(xlim[0], xlim[1])
+    ax[2].set_ylim(ylim[0], ylim[1])
+    ax[2].set_xlabel(xlabel)
+    ax[2].set_ylabel(ylabel)
+    ax[2].set_title(subtitle3)
+
+    step = len(s2) // 2000
+    x_quiver2 = s2[::step, 0]
+    y_quiver2 = s2[::step, 1]
+    u_quiver2 = q2[::step, 2]
+    v_quiver2 = q2[::step, 3]
+
+    ax[2].quiver(x_quiver2, y_quiver2, u_quiver2, v_quiver2, angles='xy', scale_units='xy', scale=5, color='gray')
+
+    cbar2 = fig.colorbar(collection2, ax=ax[2], orientation='vertical', pad=0.02)
+    cbar2.set_label(cbar_label)
+
+    for i in [0, 1, 2]:
+        ax[i].set_xticks([])
+        ax[i].set_yticks([])
+
+    # optional save plot
+    if save:
+        plt.savefig('figures/' + save_name + '.pdf')
+        plt.savefig('figures/' + save_name + '.png', dpi=500)
+
+    plt.show()
+
+
 # function to do a animation of the mesh evoulution in 2D
 def animation2D(file_name, frames, fps=30, animation_name='animation2D', cbar_label='Q-value', cmap='viridis', edgecolor='face', vmin=0, vmax=1, title='', xlabel = "", ylabel = "", lim=(0, 1), figsize=(12, 10), logscale=False, logmin=1e-18, quantity_index = 1, plot_seeds = False):
     
@@ -171,6 +316,8 @@ def animation2D(file_name, frames, fps=30, animation_name='animation2D', cbar_la
     ax.set_ylim(lim[0], lim[1])
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
+    ax.set_xticks([])
+    ax.set_yticks([])
 
     # optional set title
     if title != '':

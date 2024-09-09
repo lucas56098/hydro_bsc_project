@@ -22,9 +22,13 @@ public:
         return Q;
     }
 
-
+    // 1D scalar upwind advection
     MatrixXd calc_M_ij_k_inv_adv1D();
     MatrixXd calc_S_ij_k_adv1D();
+
+    // 2D scalar upwind advection
+    MatrixXd calc_M_ij_k_inv_adv2D();
+    MatrixXd calc_S_ij_k_adv2D(Point u);
 
 };
 

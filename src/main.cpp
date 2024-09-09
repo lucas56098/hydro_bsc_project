@@ -20,21 +20,22 @@ int main () {
 
     // SPECIFICATIONS -------------------------------------
     // grid
-    bool cartesian = true;
-    string file_name = cartesian ? "cmesh_Nbf1_res400_" : "vmesh";
-    bool is_1D = true; 
+    bool cartesian = false;
+    string file_name = cartesian ? "test/cmesh" : "wing_45_attack_x2/vmesh";
+    bool is_1D = false; 
     bool is_repeating = false;
-    int N_row = 400; // total cells = N^dimension
+    int N_row = 570; // total cells = N^dimension
 
     // simulation
-    int sim_steps = 4000;
-    double total_sim_time = 0.35;
+    int sim_steps = 570*4*4;
+    double total_sim_time = 4;
     double dt = static_cast<double>(total_sim_time)/static_cast<double>(sim_steps);
-    int save_iter = 40;
+    int save_iter = 100;
 
     // GRID GENERATION ------------------------------------
-    Mesh<DG_Q_Cell> grid(1);
-    grid.generate_grid(cartesian, is_1D, N_row, 15, is_repeating, false);
+    //Mesh<DG_Q_Cell> grid(1);
+    Mesh<Euler_Cell> grid(1);
+    grid.generate_grid(cartesian, is_1D, N_row, 15, is_repeating, true);
 
 
     // INITIAL CONDITIONS ---------------
@@ -62,19 +63,25 @@ int main () {
     //    grid.cells[i].u = 0.5;
     //    grid.cells[i].v = 0;
     //}
-    //grid.initialize_const_flow(Point(0.5, 0));
+    grid.initialize_const_flow(Point(0.3, 0));
 
     // initial conditions for discontinous galerkin advection - - - - - - - -
-    for (int i = 0; i < grid.cells.size(); i++) {
-        double x = grid.cells[i].seed.x;
+    //for (int i = 0; i < grid.cells.size(); i++) {
+    //    double x = grid.cells[i].seed.x;
+    //    double y = grid.cells[i].seed.y;
 
         //grid.cells[i].Q(0) = 1;
 
-        grid.cells[i].Q(0) = exp(-(10 * (x - 0.25)) * (10 * (x - 0.25)));
+        //grid.cells[i].Q(0) = exp(-(10 * (x - 0.25)) * (10 * (x - 0.25))) * exp(-(10 * (y - 0.25)) * (10 * (y - 0.25)));
+
+        //if (x < 0.3 && y < 0.3) {
+        //    grid.cells[i].Q(0) = 1;
+        //}
+
         //grid.cells[i].Q(1) = exp(-(10 * (x - 0.25)) * (10 * (x - 0.25))) * (x - 0.25) * -200/(2*N_row);
         //grid.cells[i].Q(2) = exp(-(10 * (x - 0.25)) * (10 * (x - 0.25))) * (2000 * (x - 0.25) * (x - 0.25) - 200)/(2*N_row)/(2*N_row);
         
-    }
+    //}
     
 
     // initialize boundary condition - - - - - - - - - - - - 
@@ -83,28 +90,9 @@ int main () {
     //grid.initialize_boundary_struct(Point(0.0, 0.0), 1.0, 0.01);
 
     // SIMULATION -----------------------------------------
-    //Solver<Euler_Cell> solver(&grid);
-    DG_Solver<DG_Q_Cell> dgsolver(&grid);
-    dgsolver.advection1D(dt, 0, 1);
-    dgsolver.advection1D(dt, 0, 1);
-    dgsolver.advection1D(dt, 0, 1);
-    dgsolver.advection1D(dt, 0, 1);
-    dgsolver.advection1D(dt, 0, 1);
-    dgsolver.advection1D(dt, 0, 1);
-    dgsolver.advection1D(dt, 0, 1);
-    dgsolver.advection1D(dt, 0, 1);
-    dgsolver.advection1D(dt, 0, 1);
-    dgsolver.advection1D(dt, 0, 1);
-    dgsolver.advection1D(dt, 0, 1);
-    dgsolver.advection1D(dt, 0, 1);
-    dgsolver.advection1D(dt, 0, 1);
-    dgsolver.advection1D(dt, 0, 1);
-    dgsolver.advection1D(dt, 0, 1);
-    dgsolver.advection1D(dt, 0, 1);
-    dgsolver.advection1D(dt, 0, 1);
-    dgsolver.advection1D(dt, 0, 1);
-    dgsolver.advection1D(dt, 0, 1);
-    dgsolver.advection1D(dt, 0, 1);
+    Solver<Euler_Cell> solver(&grid);
+//    DG_Solver<DG_Q_Cell> dgsolver(&grid);
+
     // start timer
     auto start = chrono::high_resolution_clock::now();
     for (int i = 0; i<sim_steps+1; i++) {
@@ -134,13 +122,15 @@ int main () {
         //solver.conway();
         //solver.advection(dt, Point(0.5/sqrt(2), 0.5/sqrt(2)));
         //solver.shallow_water(dt, -1, 0, 2);
-        //solver.euler(dt, -1, 2, Point(0, -1));
-        if (i%1 == 0) {
-            dgsolver.advection1D(dt, 1, 1);
-        } else {
-            dgsolver.advection1D(dt, 0, 1);
-        }
+        solver.time_at_the_moment = dt * i;
+        solver.euler(dt, 1, 2, Point(0, 0));
+        //dgsolver.advection1D(dt, 2, 1);
+        //dgsolver.advection2D_1(dt, 0, Point(0.5, 0.5));
     }
+    auto final = chrono::high_resolution_clock::now();
+    chrono::duration<double> total_time = final - start;
+
+    cout << "\n Total time: " << total_time.count() << endl;
 
     cout << "done" << endl;
 
