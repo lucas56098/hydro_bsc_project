@@ -218,65 +218,59 @@ double DG_Solver<CellType>::get_element_average_adv1D(int index, vector<VectorXd
 // assuming u.x and u.y > 0
 // function to calculate next step in scalar upwind 2D advection discontinous galerkin
 template <typename CellType>
-void DG_Solver<CellType>::advection2D_1(double dt, double slope_limited, Point u) {
+void DG_Solver<CellType>::advection2D(double dt, double slope_limited, Point u, bool intitialize) {
+
+    if (intitialize) {
+        for (int k = 0; k < grid->cells.size(); k++) {
+            // calculate M^k_ij inverse - also the N_row is absorbed in here
+            grid->cells[k].M_ij_k_inv = grid->cells[k].calc_M_ij_k_inv_adv2D();
+            // calculate S^k_ij (absorbing a u in there for later on)
+            grid->cells[k].S_ij_k = grid->cells[k].calc_S_ij_k_adv2D(u);
+        }
+        F_hat_A = get_F_hat_A_adv2D();
+        F_hat_B = get_F_hat_B_adv2D();
+        F_hat_C = get_F_hat_C_adv2D();
+        F_hat_D = get_F_hat_D_adv2D();
+    }
 
     // vector to store new Q values
     vector<VectorXd> new_Qs;
     new_Qs.reserve(grid->cells.size());
 
+    VectorXd zeroQ(grid->N_basisfunc);
+    zeroQ.setZero();
+
     // calculate new Q values
     // loop through all elements T_k for that
     for (int k = 0; k < grid->cells.size(); k++) {
 
-        DG_Q_Cell T_k = grid->cells[k];
-
-        // calculate M^k_ij inverse - also the N_row is absorbed in here
-        T_k.M_ij_k_inv = T_k.calc_M_ij_k_inv_adv2D();
-
-        // calculate S^k_ij
-        T_k.S_ij_k = T_k.calc_S_ij_k_adv2D(u);
-
         // calculate RHS_I
-        VectorXd RHS_I = T_k.S_ij_k * T_k.Q; // u from the advection here is absorbed into S_ij_k
+        VectorXd RHS_I = grid->cells[k].S_ij_k * grid->cells[k].Q;
 
-        // calculate RHS_II
-        VectorXd zeroQ(grid->N_basisfunc);
-        zeroQ.setZero();
-        // flux 1
+    
+        // get neighbour element coefficients
         VectorXd Q_km1;
-        if (T_k.edges[0].is_boundary) {
+        if (grid->cells[k].edges[0].is_boundary) {
             Q_km1 = zeroQ;
         } else {
-            Q_km1 = T_k.edges[0].neighbour->get_coeff();
+            Q_km1 = grid->cells[k].edges[0].neighbour->get_coeff();
         }
-        MatrixXd F_hat_A = get_F_hat_A_adv2D();
-        VectorXd flux1 = u.x * F_hat_A * Q_km1;
-
-        // flux 2
-        MatrixXd F_hat_B = get_F_hat_B_adv2D();
-        VectorXd flux2 = - u.x * F_hat_B * T_k.Q;
-
-        // flux 3
-        MatrixXd F_hat_C = get_F_hat_C_adv2D();
-        VectorXd flux3 = - u.y * F_hat_C * T_k.Q;
-
-        // flux 4
+        
         VectorXd Q_kmN;
-        if (T_k.edges[3].is_boundary) {
+        if (grid->cells[k].edges[3].is_boundary) {
             Q_kmN = zeroQ;
         } else {
-            Q_kmN = T_k.edges[3].neighbour->get_coeff();
+            Q_kmN = grid->cells[k].edges[3].neighbour->get_coeff();
         }
-        MatrixXd F_hat_D = get_F_hat_D_adv2D();
-        VectorXd flux4 = u.y * F_hat_D * Q_kmN;
 
-        VectorXd RHS_II = flux1 + flux2 + flux3 + flux4;
-
-        // assemble RHS
-        VectorXd RHS = RHS_I + RHS_II;
+        //VectorXd RHS = RHS_I + flux1 + flux2 + flux3 + flux4;
+        VectorXd RHS = RHS_I + (u.x * F_hat_A * Q_km1) 
+                             - (u.x * F_hat_B * grid->cells[k].Q) 
+                             - (u.y * F_hat_C * grid->cells[k].Q) 
+                             + (u.y * F_hat_D * Q_kmN);
 
         // calculate new Q using forward euler
-        VectorXd Q_k_np1 = T_k.Q + dt * T_k.M_ij_k_inv * RHS; 
+        VectorXd Q_k_np1 = grid->cells[k].Q + dt * grid->cells[k].M_ij_k_inv * RHS; 
 
         // store it in new Q vector
         new_Qs.push_back(Q_k_np1);

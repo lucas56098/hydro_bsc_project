@@ -4,6 +4,7 @@
 #include <fstream>
 #include <string>
 #include "Mesh.h"
+#include "Eigen/Dense"
 #include "cell_types/Cell.h"
 #include "cell_types/Point.h"
 #include "cell_types/Q_Cell.h"
@@ -91,8 +92,8 @@ vector<Point> Mesh<CellType>::generate_seed_points(int N, bool fixed_random_seed
     /*
     // optional point density for KH-instability
     uniform_real_distribution<int> distra(min, max);
-    normal_distribution<double> distr1(0.7, 0.03);
-    normal_distribution<double> distr2(0.3, 0.03);
+    normal_distribution<double> distr1(0.7, 0.07);
+    normal_distribution<double> distr2(0.3, 0.07);
 
 
     // generate random coordinates for Points
@@ -109,10 +110,10 @@ vector<Point> Mesh<CellType>::generate_seed_points(int N, bool fixed_random_seed
         double y = std::max(std::min(a, 0.9999), 0.0001) + 0.0009999999 * distr(eng);
 
         points.push_back(Point(x, y));
-    }*/
-    
+    }
+    */
 
-
+    /*
     // optional point density for quad shock
     uniform_real_distribution<int> distra(1, 2);
     for (int i = 0; i < N; i++) {
@@ -129,7 +130,7 @@ vector<Point> Mesh<CellType>::generate_seed_points(int N, bool fixed_random_seed
         }
 
         points.push_back(Point(x,y));
-    }
+    }*/
 
     /*
     // optional point density for circle
@@ -150,12 +151,12 @@ vector<Point> Mesh<CellType>::generate_seed_points(int N, bool fixed_random_seed
 
 
     // generate random coordinates for Points
-    //for (int i = 0; i < N; ++i) {
-    //    double x = distr(eng);
-    //    double y = distr(eng);
+    for (int i = 0; i < N; ++i) {
+        double x = distr(eng);
+        double y = distr(eng);
 
-    //    points.push_back(Point(x, y));
-    //}
+        points.push_back(Point(x, y));
+    }
 
     // if this is true the points will be sorted
     if (sort_pts) {
@@ -218,15 +219,21 @@ void Mesh<CellType>::generate_grid(bool cartesian, bool is_1D, int N_row, int ll
             vector<Point> pts = generate_seed_points(N_row * N_row, true, 0, 1, 42, true, 100, 1);
             if (lloyd_iterations != 0) {do_lloyd_iterations(&pts, lloyd_iterations);};
             int nr;
-            if (structure) {nr = add_struct(&pts, 0.0001, 0.01, "struct");}
+            //int nr2;
+            if (structure) {nr = add_struct(&pts, 0.0001, 0.006, "struct");}
+            //if (structure) {nr2 = add_struct(&pts, 0.000001, 0.006, "struct_europe");}
 
             this->generate_vmesh2D(pts, repeating, !structure);
             is_cartesian = false;
 
+            // counting here is for each structure: 0-nr: innner points, nr-2nr: outer points, 2nr - ... olt pts
             if (structure) {
-                for (int i = 0; i < nr; i++) {
+                for (int i = 0; i < nr; i++) { // if activating second structure here nr needs to be changed to nr2
                     make_cell_boundary_cell(i);
                 }
+                //for (int i = 2*nr2; i < 2*nr2 + nr; i++) {
+                //    make_cell_boundary_cell(i);
+                //}
             }
 
         }
@@ -1017,8 +1024,87 @@ int Mesh<CellType>::add_struct(vector<Point>* pts, double dist_a, double safety_
     }
     *pts = pts_removed;
 
+/*
+    if (structname == "struct_africa") {
+        inner_points.push_back(Point(0.3, 0.010001));
+        inner_points.push_back(Point(0.26, 0.01));
+        inner_points.push_back(Point(0.33, 0.0100002));
+        inner_points.push_back(Point(0.36, 0.01000001));
+        inner_points.push_back(Point(0.39, 0.01000000233));
+        inner_points.push_back(Point(0.42, 0.0100000023));
+        inner_points.push_back(Point(0.47, 0.0100000024));
+        inner_points.push_back(Point(0.49, 0.0100000005));
+        inner_points.push_back(Point(0.52, 0.0100000001));
+        inner_points.push_back(Point(0.54, 0.01000000065));
+        inner_points.push_back(Point(0.57, 0.01000000013));
+        inner_points.push_back(Point(0.62, 0.0100000002123));
+        inner_points.push_back(Point(0.64, 0.0100000002324));
+        inner_points.push_back(Point(0.67, 0.010000000253));
+        inner_points.push_back(Point(0.69, 0.01000000023534));
+        inner_points.push_back(Point(0.71, 0.010000000283534));
+        inner_points.push_back(Point(0.74, 0.0100000002264567));
+        inner_points.push_back(Point(0.76, 0.0100000002897));
+        inner_points.push_back(Point(0.78, 0.010000000276));
+        inner_points.push_back(Point(0.81, 0.010000000245));
+        inner_points.push_back(Point(0.83, 0.010000000285));
+        inner_points.push_back(Point(0.86, 0.010000000222));
+        inner_points.push_back(Point(0.89, 0.010000000256));
+        inner_points.push_back(Point(0.92, 0.010000000266));
+        inner_points.push_back(Point(0.94, 0.010000000286));
+        inner_points.push_back(Point(0.96, 0.0100000002002));
+        inner_points.push_back(Point(0.44, 0.01000000020023));
+        inner_points.push_back(Point(0.59, 0.010000000200211));
+        inner_points.push_back(Point(0.95003235, 0.1));
+        inner_points.push_back(Point(0.95003003, 0.15));
+        inner_points.push_back(Point(0.95003435, 0.2));
+        inner_points.push_back(Point(0.9500343, 0.25));
+        inner_points.push_back(Point(0.950032443, 0.3));
+        inner_points.push_back(Point(0.950031322, 0.35));
 
-
+    }
+    if (structname == "struct_europe") {
+        inner_points.push_back(Point(0.435, 0.578));
+        inner_points.push_back(Point(0.4085, 0.605));
+        inner_points.push_back(Point(0.3995, 0.616));
+        inner_points.push_back(Point(0.406, 0.683));
+        inner_points.push_back(Point(0.41, 0.69));
+        inner_points.push_back(Point(0.4087, 0.693));
+        inner_points.push_back(Point(0.4057, 0.6995));
+        inner_points.push_back(Point(0.443, 0.716));
+        inner_points.push_back(Point(0.619, 0.665));
+        //inner_points.push_back(Point(0.616, 0.658));
+        inner_points.push_back(Point(0.616, 0.658));
+        inner_points.push_back(Point(0.587212, 0.748627));
+        inner_points.push_back(Point(0.560721, 0.799572));
+        inner_points.push_back(Point(0.50623, 0.82348));
+        inner_points.push_back(Point(0.70453, 0.71765));
+        inner_points.push_back(Point(0.61066, 0.84981));
+        inner_points.push_back(Point(0.63566, 0.86962));
+        inner_points.push_back(Point(0.98399, 0.65027));
+        inner_points.push_back(Point(0.94484, 0.73309));
+        inner_points.push_back(Point(0.76338, 0.93442));        
+        inner_points.push_back(Point(0.81847, 0.94008));
+        inner_points.push_back(Point(0.84103, 0.94764));
+        inner_points.push_back(Point(0.80966, 0.96498));
+        inner_points.push_back(Point(0.81224, 0.98850));
+        inner_points.push_back(Point(0.81936, 0.99158));
+        inner_points.push_back(Point(0.9903, 0.7239));
+        inner_points.push_back(Point(0.9903001, 0.7426));
+        inner_points.push_back(Point(0.9883, 0.7644));
+        inner_points.push_back(Point(0.9891, 0.7769));
+        inner_points.push_back(Point(0.9875, 0.7983));
+        inner_points.push_back(Point(0.9859, 0.8119));
+        inner_points.push_back(Point(0.9875, 0.8556));
+        inner_points.push_back(Point(0.9859, 0.8782));
+        inner_points.push_back(Point(0.9879, 0.8984));
+        inner_points.push_back(Point(0.9871, 0.9140));
+        inner_points.push_back(Point(0.9915, 0.9401));
+        inner_points.push_back(Point(0.9911, 0.9534));
+        inner_points.push_back(Point(0.963147, 0.95718));
+        inner_points.push_back(Point(0.561222, 0.799493));
+        inner_points.push_back(Point(0.789622, 0.936035));
+    }
+*/
     // return int = inner_seeds.size(), set *pts =  {inner_seeds, outer_seeds, pts}
     vector<Point> new_pts;
     for (int i = 0; i<inner_points.size(); i++) {
@@ -1035,6 +1121,117 @@ int Mesh<CellType>::add_struct(vector<Point>* pts, double dist_a, double safety_
     return inner_points.size();
 
 
+}
+
+
+// ------------------------------------------------------------------------------------------------
+
+// step function
+template <typename CellType>
+double Mesh<CellType>::step_func2D(Point x, double t, Point p0, Point v, double a, double b) {
+    if (x.x - v.x*t >= p0.x && x.x - v.x*t < p0.x + a && x.y - v.y*t >= p0.y && x.y - v.y*t < p0.y + b) {
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
+// gaussian function
+template <typename CellType>
+double Mesh<CellType>::gaussian2D(Point x, double t, Point p0, Point v, double A, double sigma) {
+    return A * exp(-((((x.x - v.x*t) - p0.x)*((x.x - v.x*t) - p0.x) + ((x.y - v.y*t) - p0.y)*((x.y - v.y*t) - p0.y))/(2*sigma*sigma)));
+}
+
+
+// legendre basis functions 2D
+template <typename CellType>
+double Mesh<CellType>::legendre_basisfunc2D(Point x, int n) {
+    if (n == 0) {
+        return 1;
+    } else if (n == 1) {
+        return x.x;
+    } else if (n == 2) {
+        return x.y;
+    } else if (n == 3) {
+        return x.x * x.y;
+    } else if (n == 4) {
+        return 0.5*(3*x.x*x.x - 1);
+    } else if (n == 5) {
+        return 0.5*(3*x.y*x.y - 1);
+    } else
+        cout << "this basisfunc does not exist (legendre_basisfunc2D)" << endl;
+        return INFINITY;
+}
+
+// transform Xi to x
+template <typename CellType>
+Point Mesh<CellType>::ksi_to_x(Point ksi, int index) {
+    double x_x = ((cells[index].edges[1].length/2)*ksi.x) + cells[index].seed.x;
+    double x_y = ((cells[index].edges[0].length/2)*ksi.y) + cells[index].seed.y;
+    return Point(x_x, x_y);
+}
+
+// transform x to Xi
+template <typename CellType>
+Point Mesh<CellType>::x_to_ksi(Point x, int index) {
+    double ksi_x = (2/(cells[index].edges[1].length)) * (x.x - cells[index].seed.x);
+    double ksi_y = (2/(cells[index].edges[0].length)) * (x.y - cells[index].seed.y);
+    return Point(ksi_x, ksi_y);
+}
+
+
+
+// initalizes step function on a DG_Q_Cell grid using L2 projection and gaussian quadrature
+template <typename CellType>
+void Mesh<CellType>::DG_2D_initialize_step_function(Point p0, Point v, double a, double b) {
+
+    // stuff for gaussian quadrature
+    vector<double> gauss_quad2D_weights = {25.0/81.0, 40.0/81.0, 25.0/81.0, 40.0/81.0, 64.0/81.0, 40.0/81.0, 25.0/81.0, 40.0/81.0, 25.0/81.0};
+    vector<Point> gauss_quad2D_points = {Point(-sqrt(3.0/5.0), -sqrt(3.0/5.0)), Point(0, -sqrt(3.0/5.0)), Point(sqrt(3.0/5.0), -sqrt(3.0/5.0)), Point(-sqrt(3.0/5.0), 0), Point(0, 0), Point(sqrt(3.0/5.0), 0), Point(-sqrt(3.0/5.0), sqrt(3.0/5.0)), Point(0, sqrt(3.0/5.0)), Point(sqrt(3.0/5.0), sqrt(3.0/5.0))};
+    vector<double> one_over_M_jj = {1.0/4.0, 3.0/4.0, 3.0/4.0, 9.0/4.0, 5.0/4.0, 5.0/4.0};
+
+    // go through all cells    
+    for (int k = 0; k < cells.size(); k++) {
+        // go through all coefficients
+        for (int j = 0; j < cells[k].Q.size(); j++) {
+            
+            // calc correct coeff using gauss quad
+            double sum = 0;
+            for (int i = 0; i<gauss_quad2D_weights.size(); i++) {
+                sum += one_over_M_jj[j] * step_func2D(ksi_to_x(gauss_quad2D_points[i], k), 0, p0, v, a, b) * legendre_basisfunc2D(gauss_quad2D_points[i], j) * gauss_quad2D_weights[i];
+            }
+            
+            // set coeff
+            cells[k].Q[j] = sum;
+        }
+    }
+}
+
+
+// initalizes gaussian function on a DG_Q_Cell grid using L2 projection and gaussian quadrature
+template <typename CellType>
+void Mesh<CellType>::DG_2D_initialize_gaussian_function(Point p0, double A, double sigma) {
+
+    // stuff for gaussian quadrature
+    vector<double> gauss_quad2D_weights = {25.0/81.0, 40.0/81.0, 25.0/81.0, 40.0/81.0, 64.0/81.0, 40.0/81.0, 25.0/81.0, 40.0/81.0, 25.0/81.0};
+    vector<Point> gauss_quad2D_points = {Point(-sqrt(3.0/5.0), -sqrt(3.0/5.0)), Point(0, -sqrt(3.0/5.0)), Point(sqrt(3.0/5.0), -sqrt(3.0/5.0)), Point(-sqrt(3.0/5.0), 0), Point(0, 0), Point(sqrt(3.0/5.0), 0), Point(-sqrt(3.0/5.0), sqrt(3.0/5.0)), Point(0, sqrt(3.0/5.0)), Point(sqrt(3.0/5.0), sqrt(3.0/5.0))};
+    vector<double> one_over_M_jj = {1.0/4.0, 3.0/4.0, 3.0/4.0, 9.0/4.0, 5.0/4.0, 5.0/4.0};
+
+    // go through all cells    
+    for (int k = 0; k < cells.size(); k++) {
+        // go through all coefficients
+        for (int j = 0; j < cells[k].Q.size(); j++) {
+            
+            // calc correct coeff using gauss quad
+            double sum = 0;
+            for (int i = 0; i<gauss_quad2D_weights.size(); i++) {
+                sum += one_over_M_jj[j] * gaussian2D(ksi_to_x(gauss_quad2D_points[i], k), 0, p0, Point(0.5, 0.5), A, sigma) * legendre_basisfunc2D(gauss_quad2D_points[i], j) * gauss_quad2D_weights[i];
+            }
+            
+            // set coeff
+            cells[k].Q[j] = sum;
+        }
+    }
 }
 
 

@@ -828,19 +828,15 @@ array<array<double, 4>, 2> Solver<CellType>::calc_euler_gradients(int i, int bou
     //} else {
     //    limited_gradientU = slope_limit_maxmin(gradientU, i, U_i, boundary_cond);
     //}
-    //limited_gradientU = slope_limit_maxmin(gradientU, i, U_i, boundary_cond);
-    if (time_at_the_moment < 1.7) {
-        limited_gradientU = slope_limit_tvd(gradientU, i, U_i, boundary_cond);
-    } else {
-        limited_gradientU = slope_limit_maxmin(gradientU, i, U_i, boundary_cond);
-    }
+    //limited_gradientU = slope_limit_maxmin(gradientU, i, U_i, boundary_cond);    
+    //limited_gradientU = slope_limit_tvd(gradientU, i, U_i, boundary_cond);
+    limited_gradientU = slope_limit_maxmin(gradientU, i, U_i, boundary_cond);
 
     //array<array<double, 4>, 2> limited_gradientU = slope_limit_maxmin(gradientU, i, U_i, boundary_cond);
     //limited_gradientU = slope_limit_tvd(gradientU, i, U_i, boundary_cond);
 
     // return gradient which now can be used to extrapolate the values
     return limited_gradientU;
-
 }
 
 
@@ -1183,6 +1179,28 @@ array<double, 4> Solver<CellType>::U_to_puvE(array<double, 4> U) {
 
     array<double, 4> puvE = {U[0], U[1]/U[0], U[2]/U[0], U[3]};
     return puvE;
+}
+
+
+// calculate force acting on structure
+template <typename CellType>
+Point Solver<CellType>::calc_struct_force(int a, int b) {
+
+    double F_x = 0;
+    double F_y = 0;
+
+    // go through structures outer cells
+    for (int i = a; i < b; i++) {
+        for (int j = 0; j < grid->cells[i].edges.size(); j++) {
+            if (grid->cells[i].edges[j].is_boundary) {
+                Point n = get_normal_vec(grid->cells[i].edges[j].a, grid->cells[i].edges[j].b);
+                F_x += grid->cells[i].get_P() * n.x * grid->cells[i].edges[j].length;
+                F_y += grid->cells[i].get_P() * n.y * grid->cells[i].edges[j].length;
+            }
+        }
+    }
+
+    return Point(F_x, F_y);
 }
     
 

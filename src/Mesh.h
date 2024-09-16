@@ -1,5 +1,6 @@
 #include <vector>
 #include <string>
+#include "Eigen/Dense"
 #include "cell_types/Cell.h"
 #include "cell_types/Point.h"
 #include "cell_types/Q_Cell.h"
@@ -41,6 +42,16 @@ public:
     void initialize_rayleigh_taylor(Point g);
     void initialize_const_flow(Point v);
     void initialize_quad_shock();
+
+    // DG initial conditions
+    // intialize general function
+    double step_func2D(Point x, double t, Point p0 = Point(0, 0), Point v = Point(0.5, 0.5), double a = 0.3, double b = 0.3);
+    double gaussian2D(Point x, double t, Point p0 = Point(0.5, 0.5), Point v = Point(0.5, 0.5), double A = 1, double sigma = 0.25);
+    double legendre_basisfunc2D(Point x, int n);
+    Point ksi_to_x(Point ksi, int index);
+    Point x_to_ksi(Point x, int index);
+    void DG_2D_initialize_step_function(Point p0 = Point(0, 0), Point v = Point(0.5, 0.5), double a = 0.3, double b = 0.3);
+    void DG_2D_initialize_gaussian_function(Point p0 = Point(0.5, 0.5), double A = 1, double sigma = 0.25);
 
     // save mesh
     void save_mesh(int file_nr, string name, double dt);

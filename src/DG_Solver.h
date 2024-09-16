@@ -18,7 +18,7 @@ public:
     ~DG_Solver<CellType>(); 
 
     void advection1D(double dt, double slope_limited = 0, double u = 1);
-    void advection2D_1(double dt, double slope_limited = 0, Point u = Point(0.5, 0.5));
+    void advection2D(double dt, double slope_limited = 0, Point u = Point(0.5, 0.5), bool initialize = false);
 
 private:
 
@@ -29,6 +29,12 @@ private:
     double minmod(double a, double b, double c);
     double get_element_average_adv1D(int index, vector<VectorXd>& new_Qs);
     vector<VectorXd> slope_limit_adv1D(vector<VectorXd> new_Qs, double slope_limited);
+
+    // Matrices for 2D scalar advection
+    MatrixXd F_hat_A;
+    MatrixXd F_hat_B;
+    MatrixXd F_hat_C;
+    MatrixXd F_hat_D;
 
     // helper functions for cartesian 2D scalar advection 
     MatrixXd get_F_hat_A_adv2D();

@@ -17,14 +17,16 @@ public:
     Solver<CellType>(Mesh<CellType>* gridin);
     ~Solver<CellType>();
 
-    double time_at_the_moment = 0;
-
     // equation solvers
     void diffusion_like(double dt);
     void conway();
     void advection(double dt, Point v);
     void shallow_water(double dt, int boundary_cond = -1, double numerical_diffusion_coeff = 0, int sim_order = 1, double g = 1.0);
     void euler(double dt, int boundary_cond = -1, int sim_order = 2, Point g = Point(0, 0));
+
+    // other
+    Point calc_struct_force(int a = 200, int b = 400);
+
     
 
 private:
