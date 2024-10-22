@@ -7,7 +7,7 @@
 class Euler_Cell : public Cell {
 public:
     Euler_Cell();
-    Euler_Cell(Point seedin, std::vector<face> edgesin);
+    Euler_Cell(Point seedin, std::vector<edge> edgesin);
     ~Euler_Cell();
 
     double rho;     // density

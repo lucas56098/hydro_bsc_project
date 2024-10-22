@@ -2,7 +2,7 @@
 
 SWE_Cell::SWE_Cell() {}
 
-SWE_Cell::SWE_Cell(Point seedin, std::vector<face> edgesin) {
+SWE_Cell::SWE_Cell(Point seedin, std::vector<edge> edgesin) {
 
     seed = seedin;
     edges = edgesin;

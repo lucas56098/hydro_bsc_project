@@ -10,7 +10,7 @@ using namespace Eigen;
 class DG_Q_Cell : public Cell {
 public:
     DG_Q_Cell();
-    DG_Q_Cell(Point seedin, std::vector<face> edgesin, int N_basisfunc);
+    DG_Q_Cell(Point seedin, std::vector<edge> edgesin, int N_basisfunc);
     ~DG_Q_Cell();
 
     // coefficient vectors of q(x,t) in phi basis representation

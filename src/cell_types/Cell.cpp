@@ -4,7 +4,7 @@
 
 Cell::Cell() {}
 
-Cell::Cell(Point seedin, vector<face> edgesin) {
+Cell::Cell(Point seedin, vector<edge> edgesin) {
 
     seed = seedin;
     edges = edgesin;

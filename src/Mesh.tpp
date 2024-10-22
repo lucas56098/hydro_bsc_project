@@ -119,11 +119,11 @@ vector<Point> Mesh<CellType>::generate_seed_points(int N, bool fixed_random_seed
     for (int i = 0; i < N; i++) {
         double x;
         double y;
-        double scalea = 0.1*distr(eng) + 0.65;
-        double scaleb = 0.2*distr(eng) + 0.65;
-        if (distra(eng) % 3 != 0) {
-            x = scalea*distr(eng) + 0.20;
-            y = scaleb*distr(eng) + 0.05;
+        double scalea = 0.2*distr(eng) + 0.6;
+        double scaleb = 0.2*distr(eng) + 0.6;
+        if (distra(eng) % 10 != 0) {
+            x = scalea*distr(eng) + 0;
+            y = scaleb*distr(eng) + 0;
         } else {
             x = distr(eng);
             y = distr(eng);
@@ -149,7 +149,7 @@ vector<Point> Mesh<CellType>::generate_seed_points(int N, bool fixed_random_seed
     }*/
     
 
-
+   
     // generate random coordinates for Points
     for (int i = 0; i < N; ++i) {
         double x = distr(eng);
@@ -157,6 +157,7 @@ vector<Point> Mesh<CellType>::generate_seed_points(int N, bool fixed_random_seed
 
         points.push_back(Point(x, y));
     }
+    
 
     // if this is true the points will be sorted
     if (sort_pts) {
@@ -220,7 +221,7 @@ void Mesh<CellType>::generate_grid(bool cartesian, bool is_1D, int N_row, int ll
             if (lloyd_iterations != 0) {do_lloyd_iterations(&pts, lloyd_iterations);};
             int nr;
             //int nr2;
-            if (structure) {nr = add_struct(&pts, 0.0001, 0.006, "struct");}
+            if (structure) {nr = add_struct(&pts, 0.02, 0.05, "struct");}
             //if (structure) {nr2 = add_struct(&pts, 0.000001, 0.006, "struct_europe");}
 
             this->generate_vmesh2D(pts, repeating, !structure);
@@ -263,8 +264,8 @@ void Mesh<CellType>::generate_uniform_grid2D(Point start, int n_hor, int n_vert,
             Point seedin(start.x + 0.5*distx + a*distx, start.y + 0.5*disty + b*disty);
             
             // start to define the faces
-            vector<face> edgesin;
-            face f0; face f1; face f2; face f3;
+            vector<edge> edgesin;
+            edge f0; edge f1; edge f2; edge f3;
 
             // set a and b for the faces
             f0.a = Point(start.x + a*distx, start.y + b*disty);
@@ -294,7 +295,7 @@ void Mesh<CellType>::generate_uniform_grid2D(Point start, int n_hor, int n_vert,
             edgesin.push_back(f2);
             edgesin.push_back(f3);
 
-            // set face length to dist
+            // set edge length to dist
             edgesin[0].length = disty;
             edgesin[1].length = distx;
             edgesin[2].length = disty;
@@ -380,13 +381,13 @@ void Mesh<CellType>::generate_vmesh2D(vector<Point> pts, bool repeating, bool po
 
         // set seed and define edge vector
         Point seedin(vmesh.vcells[i].seed.x, vmesh.vcells[i].seed.y);
-        vector<face> edgesin;
+        vector<edge> edgesin;
 
         for (int j = 0; j<vmesh.vcells[i].edges.size(); j++) {
 
-            face f;
+            edge f;
 
-            // set face quantities
+            // set edge quantities
             f.a = vmesh.vcells[i].verticies[((vmesh.vcells[i].edges.size()-1) + j)%vmesh.vcells[i].edges.size()];
             f.b = vmesh.vcells[i].verticies[j];
             f.length = sqrt((f.a.x - f.b.x)*(f.a.x - f.b.x) + (f.a.y - f.b.y)*(f.a.y - f.b.y));
@@ -448,9 +449,9 @@ void Mesh<CellType>::generate_vmesh2D(vector<Point> pts, bool repeating, bool po
             // loop through all faces
             for (int j = 0; j<cells[i].edges.size(); j++) {
 
-                face f = cells[i].edges[j];
+                edge f = cells[i].edges[j];
 
-                // redo scaling for face positions
+                // redo scaling for edge positions
                 f.a.x = (f.a.x - 1.0/3.0) * 3.0;
                 f.a.y = (f.a.y - 1.0/3.0) * 3.0;
                 f.b.x = (f.b.x - 1.0/3.0) * 3.0;
@@ -538,8 +539,8 @@ void Mesh<CellType>::generate_vmesh1D(vector<Point> pts, bool repeating) {
         Point seedin = sorted_pts[i];
 
         // start to define the faces
-        vector<face> edgesin;
-        face f0; face f1; face f2; face f3;
+        vector<edge> edgesin;
+        edge f0; edge f1; edge f2; edge f3;
 
         // set a and b for the faces and boundary flags
         f0.is_boundary = false;
@@ -750,7 +751,7 @@ void Mesh<CellType>::initialize_euler_shock_tube() {
     // loop through all cells
     for (int i = 0; i < cells.size(); i++) {
 
-        if (cells[i].seed.x + cells[i].seed.y < 1) {
+        if (cells[i].seed.x + cells[i].seed.y < 1) { // + cells[i].seed.y < 1
             cells[i].rho += 1-1;
             cells[i].u = 0;
             cells[i].v = 0;
@@ -780,13 +781,13 @@ void Mesh<CellType>::initialize_kelvin_helmholtz() {
         double pi = 3.14159265358979323846;
 
         if (cells[i].seed.y > 0.3 && cells[i].seed.y < 0.7) {
-            cells[i].rho = 0.5;
-            cells[i].u = 0.3;
+            cells[i].rho = 4; //0.5
+            cells[i].u = 0.1; //0.3
             cells[i].v = 0;
             cells[i].E = (1/(cells[i].gamma - 1)) + 0.5*cells[i].rho*(cells[i].u*cells[i].u);
         } else {
-            cells[i].rho = 0.2;
-            cells[i].u = -0.3;
+            cells[i].rho = 3; //0.2
+            cells[i].u = -0.1; //-0.3
             cells[i].v = 0;
             cells[i].E = (1/(cells[i].gamma - 1)) + 0.5*cells[i].rho*(cells[i].u*cells[i].u);
         }
@@ -813,14 +814,14 @@ void Mesh<CellType>::initialize_rayleigh_taylor(Point g) {
 
 
 
-        if (cells[i].seed.y > 0.5 + 0.03*cos(pi*2*cells[i].seed.x*2)) {
+        if (cells[i].seed.y > 0.5 + 0.03*cos(pi*2*(cells[i].seed.x*2))) {
             cells[i].rho = 1;
             cells[i].u = 0;
             cells[i].v = 0;
             double P = 1 + cells[i].rho * g.y * (cells[i].seed.y - 0.5);
             cells[i].E = (P/(cells[i].gamma - 1)) + 0.5*cells[i].rho*(cells[i].u*cells[i].u);
         } else {
-            cells[i].rho = 0.2;
+            cells[i].rho = 0.5;
             cells[i].u = 0;
             cells[i].v = 0;
             double P = 1 + cells[i].rho * g.y * (cells[i].seed.y - 0.5);
@@ -932,13 +933,13 @@ void Mesh<CellType>::make_cell_boundary_cell(int i) {
         // if already boundary there is nothing to change
         if (cells[i].edges[j].is_boundary == false) {
 
-            // set face from internal side to boundary
+            // set edge from internal side to boundary
             cells[i].edges[j].is_boundary = true;
 
             // go through all faces of the edges[j].neighbour were looking at
             for (int k = 0; k < cells[i].edges[j].neighbour->edges.size(); k++) {
 
-                // find face with neighbour == our cell, then set its boundary also true
+                // find edge with neighbour == our cell, then set its boundary also true
                 if (cells[i].edges[j].neighbour->edges[k].neighbour == &cells[i]) {
 
                     // set that boundary true
@@ -1106,6 +1107,7 @@ int Mesh<CellType>::add_struct(vector<Point>* pts, double dist_a, double safety_
     }
 */
     // return int = inner_seeds.size(), set *pts =  {inner_seeds, outer_seeds, pts}
+    inner_points.push_back(Point(0.5, 0.5));
     vector<Point> new_pts;
     for (int i = 0; i<inner_points.size(); i++) {
         new_pts.push_back(inner_points[i]);

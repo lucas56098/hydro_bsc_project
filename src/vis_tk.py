@@ -64,7 +64,7 @@ def process_file(file_name, sort_option = 'none', print_option = False):
 
 ### 2D FV PLOTTING OPTIONS ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # function to do a 2D plot of the mesh with the colormap according to Q
-def plot_2D(s, polygons, Q, cmap = 'viridis', vmin = 0, vmax = 1, edgecolor = 'face', cbar_label = 'Q_value', title = '', xlabel = "", ylabel = "", save = True, save_name = 'image2D', figsize = (12, 10), logscale = False, logmin = 1e-18, xlim = (0, 1), ylim = (0, 1), rasterize = True, plot_seeds = False, seed_size = 10, xticks = [0.2, 0.4, 0.6, 0.8], yticks = [0.2, 0.4, 0.6, 0.8], edgewith = 1):
+def plot_2D(s, polygons, Q, cmap = 'viridis', vmin = 0, vmax = 1, edgecolor = 'face', cbar_label = 'Q_value', title = '', xlabel = "", ylabel = "", save = True, save_name = 'image2D', figsize = (12, 10), logscale = False, logmin = 1e-18, xlim = (0, 1), ylim = (0, 1), rasterize = True, plot_seeds = False, seed_size = 10, xticks = [0.2, 0.4, 0.6, 0.8], yticks = [0.2, 0.4, 0.6, 0.8], edgewith = 1, show_cbar = True, seedcolor = "tab:blue", dpi = 1000):
 
     # optionally prepare Q for logscale
     if logscale:
@@ -90,12 +90,13 @@ def plot_2D(s, polygons, Q, cmap = 'viridis', vmin = 0, vmax = 1, edgecolor = 'f
     ax.set_yticklabels([''] * len(ax.get_yticks()))
     
     if plot_seeds:
-        ax.scatter(s[:, 0], s[:, 1], color = "tab:blue", s=seed_size)
+        ax.scatter(s[:, 0], s[:, 1], color = seedcolor, s=seed_size)
 
 
     # set colorbar
-    cbar = fig.colorbar(collection, ax=ax)
-    cbar.set_label(cbar_label)
+    if show_cbar:
+        cbar = fig.colorbar(collection, ax=ax)
+        cbar.set_label(cbar_label)
 
     # optional set title
     if title != '':
@@ -103,21 +104,23 @@ def plot_2D(s, polygons, Q, cmap = 'viridis', vmin = 0, vmax = 1, edgecolor = 'f
 
     # optional save plot
     if save:
-        plt.savefig('figures/' + save_name + '.pdf', dpi = 1000, bbox_inches='tight')
+        plt.savefig('figures/' + save_name + '.pdf', dpi = dpi, bbox_inches='tight')
 
     #plt.show()
 
 
 # function to do a 2D plot of the mesh with the colormap according to Q
-def plot_2Dx3(polygons0, polygons1, polygons2, Q0, Q1, Q2, cmap = 'viridis', vmin = 0, vmax = 1, edgecolors = ['face', 'face', 'face'], cbar_label = 'Q_value', subtitles = ["", "", ""], xlabel = "", ylabel = "", save = True, save_name = 'image2D', figsize = (12, 10), logscale = False, logmin = 1e-18, xlim = (0, 1), ylim = (0, 1), rasterize = True, cbar_orientation = "horizontal", cbar_aspect = 40, cbar_padding = 0.02, edge_widths = [1, 1, 1]):
+def plot_2Dx3(polygons0, polygons1, polygons2, Q0, Q1, Q2, cmap = 'viridis', vmin = 0, vmax = 1, edgecolors = ['face', 'face', 'face'], cbar_label = 'Q_value', subtitles = ["", "", ""], xlabel = "", ylabel = "", save = True, save_name = 'image2D', figsize = (12, 10), logscale = False, logmin = 1e-18, xlim = (0, 1), ylim = (0, 1), rasterize = True, cbar_orientation = "horizontal", cbar_aspect = 40, cbar_padding = 0.02, edge_widths = [1, 1, 1], dpi = 1000):
 
     # optionally prepare Q for logscale
     if logscale:
-        Q = np.where(np.isinf(Q), -np.inf, np.log10(np.maximum(Q, np.zeros(len(Q)) + logmin)))
+        Q0 = np.where(np.isinf(Q0), -np.inf, np.log10(np.maximum(Q0, np.zeros(len(Q0)) + logmin)))
+        Q1 = np.where(np.isinf(Q1), -np.inf, np.log10(np.maximum(Q1, np.zeros(len(Q1)) + logmin)))
+        Q2 = np.where(np.isinf(Q2), -np.inf, np.log10(np.maximum(Q2, np.zeros(len(Q2)) + logmin)))
 
     # define plot, norm, poly collection
     fig, ax = plt.subplots(1, 3, figsize = figsize)
-    plt.subplots_adjust(wspace=0.02)
+    plt.subplots_adjust(wspace=0.07)
     norm = mcolors.Normalize(vmin=vmin, vmax=vmax)
     collection = PolyCollection(polygons0, array=Q0, cmap=cmap, norm=norm, edgecolor=edgecolors[0], linewidth = edge_widths[0]) # edgecolor = 'none' / 'face'
     print('finished PolyCollection')
@@ -174,13 +177,13 @@ def plot_2Dx3(polygons0, polygons1, polygons2, Q0, Q1, Q2, cmap = 'viridis', vmi
     
     # optional save plot
     if save:
-        plt.savefig('figures/' + save_name + '.pdf', dpi = 1000, bbox_inches='tight')
+        plt.savefig('figures/' + save_name + '.pdf', dpi = dpi, bbox_inches='tight')
 
     plt.show()
 
 
 # function to do a 2D plot of the mesh with the colormap according to Q
-def plot_2Dx4(polygons0, polygons1, polygons2, polygons3, Q0, Q1, Q2, Q3, cmap = 'viridis', vmin = 0, vmax = 1, edgecolors = ['face', 'face', 'face', 'face'], cbar_label = 'Q_value', subtitles = ["", "", "", ""], xlabel = "", ylabel = "", save = True, save_name = 'image2D', figsize = (12, 10), logscale = False, logmin = 1e-18, xlim = (0, 1), ylim = (0, 1), rasterize = True, cbar_orientation = "horizontal", cbar_aspect = 40, cbar_padding = 0.02, edge_widths = [1, 1, 1, 1], xticks = [0.2, 0.4, 0.6, 0.8], yticks = [0.2, 0.4, 0.6, 0.8]):
+def plot_2Dx4(polygons0, polygons1, polygons2, polygons3, Q0, Q1, Q2, Q3, cmap = 'viridis', vmin = 0, vmax = 1, edgecolors = ['face', 'face', 'face', 'face'], cbar_label = 'Q_value', subtitles = ["", "", "", ""], xlabel = "", ylabel = "", save = True, save_name = 'image2D', figsize = (12, 10), logscale = False, logmin = 1e-18, xlim = (0, 1), ylim = (0, 1), rasterize = True, cbar_orientation = "horizontal", cbar_aspect = 40, cbar_padding = 0.02, edge_widths = [1, 1, 1, 1], xticks = [0.2, 0.4, 0.6, 0.8], yticks = [0.2, 0.4, 0.6, 0.8], dpi = 1000):
 
     # optionally prepare Q for logscale
     if logscale:
@@ -188,12 +191,14 @@ def plot_2Dx4(polygons0, polygons1, polygons2, polygons3, Q0, Q1, Q2, Q3, cmap =
 
     # define plot, norm, poly collection
     fig, ax = plt.subplots(1, 4, figsize = figsize)
-    plt.subplots_adjust(wspace=0.2)
+    plt.subplots_adjust(wspace=0.07)
     norm = mcolors.Normalize(vmin=vmin, vmax=vmax)
     collection = PolyCollection(polygons0, array=Q0, cmap=cmap, norm=norm, edgecolor=edgecolors[0], linewidth = edge_widths[0]) # edgecolor = 'none' / 'face'
     print('finished PolyCollection')
     
     collection.set_rasterized(rasterize)
+
+    #fig.suptitle("high resolution")
 
     # add collection to axis and set axis options
     ax[0].add_collection(collection)
@@ -261,7 +266,7 @@ def plot_2Dx4(polygons0, polygons1, polygons2, polygons3, Q0, Q1, Q2, Q3, cmap =
     
     # optional save plot
     if save:
-        plt.savefig('figures/' + save_name + '.pdf', dpi = 1000, bbox_inches='tight')
+        plt.savefig('figures/' + save_name + '.pdf', dpi = dpi, bbox_inches='tight')
 
     plt.show()
 
@@ -269,7 +274,7 @@ def plot_2Dx4(polygons0, polygons1, polygons2, polygons3, Q0, Q1, Q2, Q3, cmap =
 # function to do a 2D plot of the mesh with the colormap according to Q
 def plot_2Dx2(polygons0, polygons1, Q0, Q1, cmap='viridis', vmin=0, vmax=1, edgecolors = ['face', 'face'], cbar_label='Q_value', 
               subtitle1='', subtitle2='', xlabel="", ylabel="", save=True, save_name='image2D', figsize=(12, 10), logscale=False, 
-              logmin=1e-18, xlim=(0, 1), ylim=(0, 1), rasterize = True):
+              logmin=1e-18, xlim=(0, 1), ylim=(0, 1), rasterize = True, dpi = 1000, edgewidth = 0.5):
 
     # optionally prepare Q for logscale
     if logscale:
@@ -281,7 +286,7 @@ def plot_2Dx2(polygons0, polygons1, Q0, Q1, cmap='viridis', vmin=0, vmax=1, edge
     plt.subplots_adjust(wspace=0.05)
     norm = mcolors.Normalize(vmin=vmin, vmax=vmax)
 
-    collection0 = PolyCollection(polygons0, array=Q0, cmap=cmap, norm=norm, edgecolor=edgecolors[0])
+    collection0 = PolyCollection(polygons0, array=Q0, cmap=cmap, norm=norm, edgecolor=edgecolors[0], linewidth = edgewidth)
     print('finished PolyCollection')
 
     collection0.set_rasterized(rasterize)
@@ -318,7 +323,7 @@ def plot_2Dx2(polygons0, polygons1, Q0, Q1, cmap='viridis', vmin=0, vmax=1, edge
 
     # optional save plot
     if save:
-        plt.savefig('figures/' + save_name + '.pdf', dpi = 1000, bbox_inches='tight')
+        plt.savefig('figures/' + save_name + '.pdf', dpi = dpi, bbox_inches='tight')
 
     plt.show()
 
@@ -328,7 +333,7 @@ def plot_2Dx3b(s0, s1, s2, q0, q1, q2, polygons0, polygons1, polygons2, Q0, Q1, 
               edgecolor1='face', edgecolor2='face', edgecolor3='face', 
               cbar_label='Q_value', subtitle1='', subtitle2='', subtitle3='', 
               xlabel="", ylabel="", save=True, save_name='image2D', figsize=(18, 10), 
-              logscale=False, logmin=1e-18, xlim=(0, 1), ylim=(0, 1), rasterize = True, edge_widths = [1, 1, 1], quiver_scale = 20):
+              logscale=False, logmin=1e-18, xlim=(0, 1), ylim=(0, 1), rasterize = True, edge_widths = [1, 1, 1], quiver_scale = 20, dpi = 1000):
 
     # optionally prepare Q for logscale
     if logscale:
@@ -368,7 +373,7 @@ def plot_2Dx3b(s0, s1, s2, q0, q1, q2, polygons0, polygons1, polygons2, Q0, Q1, 
     quiver0 = ax[0].quiver(x_quiver0, y_quiver0, u_quiver0, v_quiver0, angles='xy', scale_units='xy', scale=quiver_scale, color='gray')
     quiver0.set_rasterized(rasterize)
     cbar0 = fig.colorbar(collection0, ax=ax[0], orientation='vertical', pad=0.02)
-    cbar0.set_label(cbar_label)
+    #cbar0.set_label(cbar_label)
 
     collection1 = PolyCollection(polygons1, array=Q1, cmap=cmap, norm=norm2, edgecolor=edgecolor2, linewidth = edge_widths[1])
     print('finished PolyCollection')
@@ -395,7 +400,7 @@ def plot_2Dx3b(s0, s1, s2, q0, q1, q2, polygons0, polygons1, polygons2, Q0, Q1, 
     quiver1 = ax[1].quiver(x_quiver1, y_quiver1, u_quiver1, v_quiver1, angles='xy', scale_units='xy', scale=quiver_scale, color='gray')
     quiver1.set_rasterized(rasterize)
     cbar1 = fig.colorbar(collection1, ax=ax[1], orientation='vertical', pad=0.02)
-    cbar1.set_label(cbar_label)
+    #cbar1.set_label(cbar_label)
 
     collection2 = PolyCollection(polygons2, array=Q2, cmap=cmap, norm=norm3, edgecolor=edgecolor3, linewidth = edge_widths[2])
     print('finished PolyCollection')
@@ -422,11 +427,12 @@ def plot_2Dx3b(s0, s1, s2, q0, q1, q2, polygons0, polygons1, polygons2, Q0, Q1, 
     quiver2 = ax[2].quiver(x_quiver2, y_quiver2, u_quiver2, v_quiver2, angles='xy', scale_units='xy', scale=quiver_scale, color='gray')
     quiver2.set_rasterized(rasterize)
     cbar2 = fig.colorbar(collection2, ax=ax[2], orientation='vertical', pad=0.02)
+    #cbar2 = fig.colorbar(collection2, ax=ax, orientation='vertical', pad=0.02)
     cbar2.set_label(cbar_label)
 
     # optional save plot
     if save:
-        plt.savefig('figures/' + save_name + '.pdf', dpi = 1000, bbox_inches='tight')
+        plt.savefig('figures/' + save_name + '.pdf', dpi = dpi, bbox_inches='tight')
         #plt.savefig('figures/' + save_name + '.png', dpi=500)
 
     plt.show()
@@ -515,7 +521,7 @@ def animation2D(file_name, frames, fps=30, animation_name='animation2D', cbar_la
 # function to do 1D-plot of vmesh and cartesian Q values
 def plot_1D(filenames, labels, sort_option, title = '', x_label = '', y_label = 'Q-Value', xlim = (0,1), ylim = (0, 1), save_name = '', bin_size = 0, logscale = False, quantity_index = 1, analytic_solution = "",
             x0 = 0.5, gamma = 5.0/3.0, left_state = (1,1,0), right_state = (0.1, 0.125, 0), velocity = 0.5, a = 0, b = 0.1, 
-                hl = 2, hr= 1, g = 1):
+                hl = 2, hr= 1, g = 1, rasterized = False):
     
     # go through all filenames
     for i in range(len(filenames)):
@@ -525,9 +531,25 @@ def plot_1D(filenames, labels, sort_option, title = '', x_label = '', y_label = 
 
         # plot Q[:, quantity_index] sorted by x or y
         if sort_option[i] == 'y':
-            plt.scatter(seed[:, 1], Q[:, quantity_index], marker = '.', label= labels[i])
+            plt.scatter(seed[:, 1], Q[:, quantity_index[i]], marker = '.', label= labels[i], rasterized = rasterized)
         elif sort_option[i] == 'x':
-            plt.scatter(seed[:, 0], Q[:, quantity_index], marker = '.', label= labels[i])
+            #plt.plot(seed[:, 0], Q[:, quantity_index[i]], marker = '+', label= labels[i], linewidth = 1, rasterized = rasterized)
+            plt.scatter(seed[:, 0], Q[:, quantity_index[i]], label= labels[i], s = 1, rasterized = rasterized)
+        elif sort_option[i] == 'diagonal':
+            # plot a projection onto diagonal here
+            plt.scatter(((1/np.sqrt(2)) * (seed[:, 0] + seed[:, 1])), Q[:, quantity_index[i]], label= labels[i], s=0.8, rasterized = rasterized)
+        elif sort_option[i] == 'diagonal_filter':
+            # calculate distance of points to diagonal
+            distance_to_diagonal = np.abs(seed[:, 0] - seed[:, 1]) / np.sqrt(2)
+            
+            # filter indices by distance limit
+            filtered_indices = distance_to_diagonal < 0.05
+            filtered_seed = seed[filtered_indices]
+            filtered_Q = Q[filtered_indices]
+
+            # plot filtered seeds projected onto diagonal
+            proj_seed = (1/np.sqrt(2)) * (filtered_seed[:, 0] + filtered_seed[:, 1])
+            plt.scatter(proj_seed, filtered_Q[:, quantity_index[i]], label=labels[i], s=0.8, rasterized = rasterized)
 
         # optional binned plot in x direction
         if bin_size != 0:
@@ -545,7 +567,7 @@ def plot_1D(filenames, labels, sort_option, title = '', x_label = '', y_label = 
 
             val_names = ['time - cannot plot analytical solution for time', 'rho', 'u', 'v  - cannot plot analytical solution for y-velocity', 'e  - cannot plot analytical solution for energy density', 'p'] # only rho, u, p will work though (only ones that we can directly compare)
 
-            plt.plot(values['x'], values[val_names[quantity_index[0]]], color = 'red', label = 'analytic', linewidth = 1)
+            plt.plot(values['x'], values[val_names[quantity_index[0]]], color = 'red', label = 'analytic', linewidth = 1, rasterized = rasterized)
 
         # optional add analytic solution for advecting step
         if analytic_solution == "adv_step" and i == range(len(filenames))[-1]:
@@ -590,7 +612,7 @@ def plot_1D(filenames, labels, sort_option, title = '', x_label = '', y_label = 
             # plot analytical solution given we now have a way to calculate it
             lsp = np.linspace(xlim[0], xlim[1], 1000)
             h_analytic = [get_h_at_t_and_x(x, Q[0, 0], x0, cl, cm, cr, hl, hm, hr, g) for x in lsp]
-            plt.plot(lsp, h_analytic, label = 'analytic', color = 'red', linewidth = 0.5)
+            plt.plot(lsp, h_analytic, label = 'analytic', color = 'grey', linewidth = 1, alpha = 0.5, rasterized = rasterized)
 
     # optional set title
     if title != '':
@@ -609,9 +631,9 @@ def plot_1D(filenames, labels, sort_option, title = '', x_label = '', y_label = 
 
     # optional save to file
     if save_name != '':
-        plt.savefig("figures/" + save_name + ".png")
+        plt.savefig("figures/" + save_name + ".pdf")
 
-    plt.show()
+    #plt.show()
 
 
 ## analytic solution to 1D advection of step function
@@ -777,7 +799,7 @@ def plot_L1_error_over_time(filenames = ["L1_error"], labels = ["L1_error"], tit
 
     # save plot
     plt.savefig("figures/"+ save_name +".png")
-    plt.show() 
+    #plt.show() 
 
 
 # get relative to a "analytic" high res solution the L1 error
@@ -835,8 +857,8 @@ def plot_L1_error_over_N(filenames, N_list, index = -1, dataname = "L1 error", r
     plt.scatter(N_list, L1s, marker = 'o', label = dataname + f" order: {np.abs(popt[0]):.2f}")
     plt.plot(np.exp(lsp), np.exp(fit_function(lsp, *popt)), color = 'grey')
     plt.title("L1 error over resolution")
-    plt.xlabel("N_x")
-    plt.ylabel("L1 error")
+    plt.xlabel("N in [a.u.]")
+    plt.ylabel("L1 error in [a.u.]")
     plt.xscale('log')
     plt.yscale('log')
     plt.legend()
@@ -867,7 +889,7 @@ def plot_Q_diff_over_time(filename = 'total_Q_diff', logscale = True, title = 'C
     plt.title(title)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
-    plt.savefig("figures/"+ save_name +".png")
+    plt.savefig("figures/"+ save_name +".pdf")
     plt.show()    
 
 
@@ -1033,7 +1055,7 @@ def DG_plot_1D_monomial(filenames, colors, linestyles, labels, title = "1D DG sc
     # show legend and save plot
     plt.legend(loc = legend_loc)
     plt.savefig('figures/' + save_name + ".pdf")
-    plt.show()
+    #plt.show()
 
 
 ### 1D DG L1 ERROR ----------------------
@@ -1292,6 +1314,7 @@ def DG_2D_L1_over_N(filenames, N_xs, analytic_sol = 'step', dataname = "", integ
     lsp = np.linspace(min(np.log(x)), max(np.log(x)), 10)
     popt, pcov = curve_fit(fit_function, np.log(x), np.log(y))
     print(popt)
+
 
     # scatterplot and plot style
     plt.scatter(N_xs, L1s, label = dataname + f" order: {np.abs(popt[0]):.2f}", marker = 'o', color = color)

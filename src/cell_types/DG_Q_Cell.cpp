@@ -2,7 +2,7 @@
 
 DG_Q_Cell::DG_Q_Cell() {}
 
-DG_Q_Cell::DG_Q_Cell(Point seedin, std::vector<face> edgesin, int N_basisfunc) {
+DG_Q_Cell::DG_Q_Cell(Point seedin, std::vector<edge> edgesin, int N_basisfunc) {
 
     seed = seedin;
     edges = edgesin;

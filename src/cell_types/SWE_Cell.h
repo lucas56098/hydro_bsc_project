@@ -8,7 +8,7 @@
 class SWE_Cell : public Cell {
 public:
     SWE_Cell();
-    SWE_Cell(Point seedin, std::vector<face> edgesin);
+    SWE_Cell(Point seedin, std::vector<edge> edgesin);
     ~SWE_Cell();
 
     double h; // column height

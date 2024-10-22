@@ -19,7 +19,7 @@ Solver<CellType>::Solver(Mesh<CellType>* gridin) {
 }
 
 // PRIVATE helper functions -----------------------------------------------------------------------
-// function to get the normal vector on a face definde by two points
+// function to get the normal vector on a edge definde by two points
 template <typename CellType>
 Point Solver<CellType>::get_normal_vec(Point a, Point b) {
 
@@ -80,7 +80,7 @@ void Solver<CellType>::diffusion_like(double dt) {
 
         double deltaQ = 0;
 
-        // calculate flux for each face and add to total in/outflow
+        // calculate flux for each edge and add to total in/outflow
         for (int j = 0; j< grid->cells[i].edges.size(); j++) {
 
             // calculate flux for normal faces and boundary faces
@@ -380,7 +380,7 @@ void Solver<CellType>::shallow_water(double dt, int boundary_cond, double numeri
             // calculate flux
             array<double, 3> F_ij = hll_solver_swe_2D(huv_i_ext, huv_j_ext, g, i, j, numerical_diffusion_coeff);
 
-            // get length of face
+            // get length of edge
             double l_i_j = grid->cells[i].edges[j].length;
 
             // add to total flux * length
@@ -457,7 +457,7 @@ void Solver<CellType>::euler(double dt, int boundary_cond, int sim_order, Point 
             // calculate Flux
             array<double, 4> F_ij = hll_solver_euler_2D(puvE_i_ext, puvE_j_ext, i, j);
 
-            // get length of face
+            // get length of edge
             double l_i_j = grid->cells[i].edges[j].length;
 
             // add to total flux * length
@@ -630,7 +630,7 @@ array<array<double, 3>, 2> Solver<CellType>::calc_swe_gradients(int i, int bound
 
         // distance from seed r_i to neighbour seed r_j
         double r_ij = 2 * (mid.x * n.x + mid.y * n.y);
-        // vector from midpoint between r_i and r_j to the midpoint of the face
+        // vector from midpoint between r_i and r_j to the midpoint of the edge
         Point c_ij = Point(
                             mid.x - 0.5*r_ij*n.x,
                             mid.y - 0.5*r_ij*n.y
@@ -802,7 +802,7 @@ array<array<double, 4>, 2> Solver<CellType>::calc_euler_gradients(int i, int bou
 
         // distance from seed r_i to neighbour seed r_j
         double r_ij = 2 * (mid.x * n.x + mid.y * n.y);
-        // vector from midpoint between r_i and r_j to the midpoint of the face
+        // vector from midpoint between r_i and r_j to the midpoint of the edge
         Point c_ij = Point(
                             mid.x - 0.5*r_ij*n.x,
                             mid.y - 0.5*r_ij*n.y
@@ -828,8 +828,16 @@ array<array<double, 4>, 2> Solver<CellType>::calc_euler_gradients(int i, int bou
     //} else {
     //    limited_gradientU = slope_limit_maxmin(gradientU, i, U_i, boundary_cond);
     //}
-    //limited_gradientU = slope_limit_maxmin(gradientU, i, U_i, boundary_cond);    
-    //limited_gradientU = slope_limit_tvd(gradientU, i, U_i, boundary_cond);
+    //limited_gradientU = slope_limit_maxmin(gradientU, i, U_i, boundary_cond);
+    //limited_gradientU = gradientU;    
+
+    //if (grid->cells[i].seed.x < 0.03 || grid->cells[i].seed.y < 0.03) {
+    //    limited_gradientU = slope_limit_tvd(gradientU, i, U_i, boundary_cond, 0.1);
+    //} else {
+    //    //limited_gradientU = slope_limit_tvd(gradientU, i, U_i, boundary_cond, 0.5);
+    //    limited_gradientU = slope_limit_maxmin(gradientU, i, U_i, boundary_cond);
+    //}
+    //limited_gradientU = slope_limit_tvd(gradientU, i, U_i, boundary_cond, 0.7);
     limited_gradientU = slope_limit_maxmin(gradientU, i, U_i, boundary_cond);
 
     //array<array<double, 4>, 2> limited_gradientU = slope_limit_maxmin(gradientU, i, U_i, boundary_cond);
@@ -919,8 +927,6 @@ array<array<double, 4>, 2> Solver<CellType>::slope_limit_maxmin(array<array<doub
 // slope limit euler gradient (like in TESS -> is TVD)
 template <typename CellType>
 array<array<double, 4>, 2> Solver<CellType>::slope_limit_tvd(array<array<double, 4>, 2> gradientU, int i, array<double, 4> U_i, int boundary_cond, double theta) {
-
-    theta = 1;
 
     // slope limiting
     array<double, 4> a_i = {1.0, 1.0, 1.0, 1.0};
@@ -1077,12 +1083,12 @@ array<double, 4> Solver<CellType>::get_puvE_j(array<double, 4> puvE_i, int i, in
     }
 
     // activate this if you want a constant flow like in a wind tunnel
-    if (grid->cells[i].seed.x < 0.01) {
-        puvE_j[0] = 1;
-        puvE_j[1] = 0.3;
-        puvE_j[2] = 0;
-        puvE_j[3] = 1;
-    }
+    //if (grid->cells[i].seed.x < 0.01) {
+    //    puvE_j[0] = 1;
+    //    puvE_j[1] = 0.3;
+    //    puvE_j[2] = 0;
+    //    puvE_j[3] = 1;
+    //}
 
     // get actual puvE values if its not a boundary
     if (grid->cells[i].edges[j].is_boundary == false) {
@@ -1139,7 +1145,7 @@ array<double, 4> Solver<CellType>::get_flux_f_euler(array<double, 4> puvE) {
 }
 
 
-// get midpoint of a face
+// get midpoint of a edge
 template <typename CellType>
 Point Solver<CellType>::get_f_mid(int i, int j) {
     return Point((grid->cells[i].edges[j].a.x + grid->cells[i].edges[j].b.x)/2.0, (grid->cells[i].edges[j].a.y + grid->cells[i].edges[j].b.y)/2.0);

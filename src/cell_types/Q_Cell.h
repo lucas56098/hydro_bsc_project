@@ -7,7 +7,7 @@
 class Q_Cell : public Cell {
 public:
     Q_Cell();
-    Q_Cell(Point seedin, std::vector<face> edgesin);
+    Q_Cell(Point seedin, std::vector<edge> edgesin);
     ~Q_Cell();
 
     double Q;

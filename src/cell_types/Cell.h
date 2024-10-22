@@ -9,10 +9,10 @@ using namespace Eigen;
 
 class Cell;
 
-// structure to store a face out of the edges of the cell
-struct face
+// structure to store a edge out of the edges of the cell
+struct edge
     {
-        // start and endpoint of the face
+        // start and endpoint of the edge
         Point a;
         Point b;
 
@@ -26,12 +26,12 @@ class Cell {
 
 public:
     Cell();
-    Cell(Point seedin, vector<face> edgesin);
+    Cell(Point seedin, vector<edge> edgesin);
     ~Cell();
 
     Point seed;
     Point centroid;
-    vector<face> edges;
+    vector<edge> edges;
     double volume;
     int index;
 
